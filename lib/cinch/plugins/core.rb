@@ -388,13 +388,17 @@ class Round
 
   def mission_success?
     player_count = self.team_votes.size  
-    mission_score = mission_votes.values.map{|mv| mv == 'fail' ? 1 : 0 }.reduce(:+) 
+    mission_score = self.mission_fails
     if player_count >= 7 && self.number == 4 # with more than 7 players on round 4
       success = mission_score < 2 # need 2 fails
     else
       success = mission_score < 1 # otherwise need 1 fail
     end 
     success
+  end
+
+  def mission_fails
+    mission_votes.values.map{|mv| mv == 'fail' ? 1 : 0 }.reduce(:+) 
   end
 
   # State methods

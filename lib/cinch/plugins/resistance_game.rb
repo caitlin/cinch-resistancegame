@@ -8,14 +8,13 @@ module Cinch
     class ResistanceGame
       include Cinch::Plugin
 
-      SETTINGS_FILE = "settings.yml"
-
       def initialize(*args)
         super
         @game = Game.new
-        @channel_name = "#playresistance-dev"
 
-        # config[:option] if config[:option]
+        @mods          = config[:mods]
+        @channel_name  = config[:channel]
+        @settings_file = config[:settings]
       end
 
 
@@ -28,25 +27,45 @@ module Cinch
       match /mission (.+)/i, :method => :mission_vote
 
       # helpers
-      match /invite/i,          :method => :invite
-      match /subscribe/i,       :method => :subscribe
-      match /unsubscribe/i,     :method => :unsubscribe
-      match /who/i,             :method => :list_players
-      match /team(\d)/i,        :method => :get_team
-      match /teams/i,           :method => :get_teams
-      match /score/i,           :method => :score
-      match /team_sizes/i,      :method => :team_sizes
-      match /status/i,          :method => :status
-      match /help/i,            :method => :help
-      match /intro/i,           :method => :intro
-      match /rules/i,           :method => :rules
-      match /settings (.+)/i,   :method => :game_settings
+      match /invite/i,             :method => :invite
+      match /subscribe/i,          :method => :subscribe
+      match /unsubscribe/i,        :method => :unsubscribe
+      match /who/i,                :method => :list_players
+      match /team(\d)/i,           :method => :get_team
+      match /teams/i,              :method => :get_teams
+      match /score/i,              :method => :score
+      match /team_sizes/i,         :method => :team_sizes
+      match /status/i,             :method => :status
+      match /help/i,               :method => :help
+      match /intro/i,              :method => :intro
+      match /rules/i,              :method => :rules
+      match /settings (.+)/i,      :method => :game_settings
+   
+      match "changelog",           :method => :changelog_dir
+      match /changelog (\d+)/i,    :method => :changelog
+   
+      match /reset/i,              :method => :reset_game
+      match /replace (.+?) (.+)/i, :method => :replace_user
 
-      match "changelog",        :method => :changelog_dir
-      match /changelog (\d+)/i, :method => :changelog
 
-      match "reset!!",          :method => :reset_game
+      listen_to :join,          :method => :voice_if_in_game
+      #listen_to :join,          :method => :devoice_everyone_on_start
 
+      #--------------------------------------------------------------------------------
+      # Listeners
+      #--------------------------------------------------------------------------------
+      
+      def voice_if_in_game(m)
+        if @game.has_player?(m.user)
+          Channel(@channel_name).voice(m.user)
+        end
+      end
+
+      def devoice_everyone_on_start(m)
+        if m.user == bot
+          self.devoice_channel
+        end
+      end
 
       #--------------------------------------------------------------------------------
       # Helpers
@@ -70,12 +89,12 @@ module Cinch
       end
 
       def rules(m)
-        User(m.user).send "When the game starts, ResistanceBot will PM you whether you are a resistance or a spy. If you are a spy, it will also tell you who the other spies are."
-        User(m.user).send "The team leader for the round will choose a team to go on the mission. Everyone is going to VOTE whether they like that team or not. Votes are made in secret, but who voted what will be publicly revealed after all votes are in. This is a majority vote, and ties are not accepted."
-        User(m.user).send "If the team is not approved, the next player becomes the team leader and attempts to make the team. If the team making fails 5 times in a row, the spies win the game immediately."
-        User(m.user).send "When a team has been passed, they go on the mission. The team members then decide if want the mission to pass or not. Resistance can only vote for the mission to pass; it is against their objective to do otherwise. Spies can choose to pass OR fail. Maybe they want to gain trust; but maybe they want to get the fail marker. "
-        User(m.user).send "After the votes have been made, the results are shuffled and revealed. It takes only ONE fail for the whole mission to fail. (Exception: in 7+ games, it requires TWO fails for Round 4 to fail.)"
-        User(m.user).send "The first team to win three missions wins the game."
+        User(m.user).send "GAME SETUP: When the game starts, ResistanceBot will PM you to tell you whether you are a Resistance or a Spy. If you are a Spy, it will also tell you who the other Spies are.  The number of Spies is dependent on the total number of players, but will always be strictly less than the number of Resistance members."
+        User(m.user).send "HOW TO WIN: There will be up to 5 Missions. If you are a member of the Resistance, you and the rest of the Resistance will win if 3 Missions Pass.  If you are a Spy, you and the other Spies will win if 3 Missions Fail. The game is over as soon as one of those conditions is met. There is another win condition for the Spies, explained below."
+        User(m.user).send "HOW TO PLAY: The Team Leader for the round will Propose a Team to go on the Mission. The Team size changes from Mission to Mission, and Team sizes for the game are dependent on the number of players. Everyone then Votes whether they want to approve the Proposed Team to go on the Mission or not. Votes are made in secret, but how players Voted will be publicly revealed after all Votes are in. This is a majority Vote, and a tie means the Proposed Team will not go on the Mission."
+        User(m.user).send "If the Team is not approved, the next player becomes the Team Leader and proposes a new Team. If the Team proposal process fails 5 times in a row, the Spies win the game immediately; in practice, as there are always fewer Spies than Resistance, this means that everyone should vote to approve the fifth proposed Team since the last Mission."
+        User(m.user).send "When a proposed Team has been approved, they go on the Mission. The Team members then decide if they want the Mission to Pass or Fail. Resistance can only vote for the Mission to Pass; it is against their objective to do otherwise. Spies can choose to Pass OR Fail. Maybe they want to gain trust; but maybe they want to score a Mission Fail for their team."
+        User(m.user).send "After Mission decisions have been made, the results are shuffled and revealed. It takes only ONE Fail for the whole Mission to Fail. (Exception: in games with 7 or more players, because of the increased number of Spies, it requires TWO Fails for 4th Mission to Fail.) A Mission which does not Fail will Pass. After a Mission has been completed (Pass or Fail), the next player becomes the new Team Leader and proposes the next Team."
       end
 
       def list_players(m)
@@ -95,7 +114,7 @@ module Cinch
           m.reply "A team hasn't been made for that round yet."
         else
           team = prev_round.team
-          m.reply "TEAM #{number} - Leader: #{prev_round.team_leader.user.nick} - #{team.map{ |p| p.user.nick }.join(', ')} - #{prev_round.mission_success? ? "PASSED" : "FAILED"}"
+          m.reply "TEAM #{number} - Leader: #{prev_round.team_leader.user.nick} - #{team.map{ |p| p.user.nick }.join(', ')} - #{prev_round.mission_success? ? "PASSED" : "FAILED (#{prev_round.mission_fails})"}"
         end
       end
 
@@ -157,10 +176,14 @@ module Cinch
       def subscribe(m)
         settings = load_settings || {}
         subscribers = settings["subscribers"] || []
-        subscribers << m.user.nick
-        settings["subscribers"] = subscribers
-        save_settings(settings)
-        User(m.user).send "You've been subscribed to the invitation list."
+        if subscribers.include?(m.user.nick)
+          User(m.user).send "You are already subscribed to the invitation list."
+        else
+          subscribers << m.user.nick 
+          settings["subscribers"] = subscribers
+          save_settings(settings)
+          User(m.user).send "You've been subscribed to the invitation list."
+        end
       end
 
       def unsubscribe(m)
@@ -174,10 +197,49 @@ module Cinch
         User(m.user).send "You've been unsubscribed to the invitation list."
       end
 
+      #--------------------------------------------------------------------------------
+      # Mod commands
+      #--------------------------------------------------------------------------------
+
+      def is_mod?(nick)
+        # make sure that the nick is in the mod list and the user in authenticated
+        puts "="*80
+        puts "@mods.include?(nick) => #{@mods.include?(nick)}"
+        puts "User(nick).authed? => #{User(nick).authed?}"
+        puts "="*80
+        
+        @mods.include?(nick) && User(nick).authed?
+      end
 
       def reset_game(m)
-        @game = Game.new
-        m.reply "The game has been reset."
+        if self.is_mod? m.user.nick
+          @game = Game.new
+          self.devoice_channel
+          m.reply "The game has been reset."
+        else 
+          User(m.user).send "You cannot do that."
+        end
+      end
+
+      def replace_user(m, nick1, nick2)
+        if self.is_mod? m.user.nick
+          # find irc users based on nick
+          user1 = User(nick1)
+          user2 = User(nick2)
+          
+          # replace the users for the players
+          player = @game.find_player(user1)
+          player.user = user2
+
+          # devoice/voice the players
+          Channel(@channel_name).devoice(user1)
+          Channel(@channel_name).voice(user2)
+
+          # tell loyalty to new player
+          self.tell_loyalty_to(player)
+        else 
+          User(m.user).send "You cannot do that."
+        end
       end
 
       #--------------------------------------------------------------------------------
@@ -204,20 +266,24 @@ module Cinch
       #--------------------------------------------------------------------------------
 
       def join(m)
-        if @game.accepting_players?
-          added = @game.add_player(m.user)
-          unless added.nil?
-            Channel(@channel_name).send "#{m.user.nick} has joined the game (#{@game.players.count}/#{Game::MAX_PLAYERS})"
-            Channel(@channel_name).voice(m.user)
+        if Channel(@channel_name).has_user?(m.user)
+          if @game.accepting_players? 
+            added = @game.add_player(m.user)
+            unless added.nil?
+              Channel(@channel_name).send "#{m.user.nick} has joined the game (#{@game.players.count}/#{Game::MAX_PLAYERS})"
+              Channel(@channel_name).voice(m.user)
+            end
+          else
+            if @game.started?
+              Channel(@channel_name).send "#{m.user.nick}: Game has already started."
+            elsif @game.at_max_players?
+              Channel(@channel_name).send "#{m.user.nick}: Game is at max players."
+            else
+              Channel(@channel_name).send "#{m.user.nick}: You cannot join."
+            end
           end
         else
-          if @game.started?
-            Channel(@channel_name).send "#{m.user.nick}: Game has already started."
-          elsif @game.at_max_players?
-            Channel(@channel_name).send "#{m.user.nick}: Game is at max players."
-          else
-            Channel(@channel_name).send "#{m.user.nick}: You cannot join."
-          end
+          User(m.user).send "You need to be in #{@channel_name} to join the game."
         end
       end
 
@@ -488,19 +554,24 @@ module Cinch
         @game.mission_results.map{ |mr| mr ? "O" : "X" }.join(" ")
       end
 
+      def devoice_channel
+        Channel(@channel_name).voiced.each do |user|
+          Channel(@channel_name).devoice(user)
+        end
+      end
 
       #--------------------------------------------------------------------------------
       # Settings
       #--------------------------------------------------------------------------------
       
       def save_settings(settings)
-        output = File.new(SETTINGS_FILE, 'w')
+        output = File.new(@settings_file, 'w')
         output.puts YAML.dump(settings)
         output.close
       end
 
       def load_settings
-        output = File.new(SETTINGS_FILE, 'r')
+        output = File.new(@settings_file, 'r')
         settings = YAML.load(output.read)
         output.close
 
@@ -514,6 +585,18 @@ module Cinch
       
 
       CHANGELOG = [
+        {
+          :date => "2012-09-12",
+          :changes => [
+            "Updated the rules, with timotab's better rules",
+            "Bot devoices everyone on reset",
+            "When a player joins the channel, voice them if they are in the game",
+            "Show fail count in !team# - \"FAILED (1)\" or \"FAILED (2)\"",
+            "Added the ability to replace a user with another user while in game",
+            "Bug fix: A user can no longer subscribe twice",
+            "Bug fix: A user can no longer join if not in channel"
+          ]
+        },
         {
           :date => "2012-09-12",
           :changes => [
