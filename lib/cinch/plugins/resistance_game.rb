@@ -33,6 +33,7 @@ module Cinch
       match /who/i,                :method => :list_players
       match /team(\d)/i,           :method => :get_team
       match /teams/i,              :method => :get_teams
+      match /mission(\d)/i,        :method => :mission_summary
       match /score/i,              :method => :score
       match /team_sizes/i,         :method => :team_sizes
       match /status/i,             :method => :status
@@ -105,23 +106,46 @@ module Cinch
         end
       end
 
-      #add team_leader and result to team1, team2
-
       def get_team(m, round_number)
         number = round_number.to_i
         prev_round = @game.get_prev_round(number)
-        if prev_round.nil?
-          m.reply "A team hasn't been made for that round yet."
-        else
+        if ! prev_round.nil? && (prev_round.ended? || prev_round.in_mission_phase?)
           team = prev_round.team
-          m.reply "TEAM #{number} - Leader: #{prev_round.team_leader.user.nick} - #{team.map{ |p| p.user.nick }.join(', ')} - #{prev_round.mission_success? ? "PASSED" : "FAILED (#{prev_round.mission_fails})"}"
+          if prev_round.ended?
+            mission_result = prev_round.mission_success? ? "PASSED" : "FAILED (#{prev_round.mission_fails})"
+          else
+            mission_result = "AWAY ON MISSION"
+          end
+          m.reply "TEAM #{number} - Leader: #{prev_round.team_leader.user.nick} - #{team.players.map{ |p| p.user.nick }.join(', ')} - #{mission_result}"
+        else
+          #m.reply "A team hasn't been made for that round yet."
         end
       end
 
       def get_teams(m)
-        round = @game.current_round.number - 1
+        round = @game.current_round.number
         (1..round).to_a.each do |i|
           self.get_team(m, i)
+        end
+      end
+
+      def mission_summary(m, round_number)
+        number = round_number.to_i
+        prev_round = @game.get_prev_round(number)
+        if prev_round.nil?
+          m.reply "That mission hasn't started yet."
+        else
+          teams = prev_round.teams
+          m.reply "MISSION #{number}"
+          teams.each_with_index do |team, i|
+            went_team = team.team_makes? ? " - MISSION" : ""
+            if team.team_votes.length == @game.players.length # this should probably be a method somewhere?
+              m.reply "Team #{i+1} - Leader: #{team.team_leader.user.nick} - Team: #{team.players.map{ |p| p.user.nick }.join(', ')} - Votes: #{self.format_votes(team.team_votes)}#{went_team}"
+            end
+          end
+          if prev_round.ended?
+            m.reply "RESULT: #{prev_round.mission_success? ? "PASSED" : "FAILED (#{prev_round.mission_fails})"}"
+          end
         end
       end
 
@@ -302,7 +326,7 @@ module Cinch
 
               Channel(@channel_name).send "The game has started. There are #{@game.spies.count} spies. Team sizes will be: #{@game.team_sizes.values.join(", ")}"
               Channel(@channel_name).send "Player order is: #{@game.players.map{ |p| p.user.nick }.join(' ')}"
-              Channel(@channel_name).send "ROUND #{@game.current_round.number}. Team Leader: #{@game.team_leader.user.nick}. Please choose a team of #{@game.current_team_size} to go on the first mission."
+              Channel(@channel_name).send "MISSION #{@game.current_round.number}. Team Leader: #{@game.team_leader.user.nick}. Please choose a team of #{@game.current_team_size} to go on the first mission."
               User(@game.team_leader.user).send "You are team leader. Please choose a team of #{@game.current_team_size} to go on first mission. \"!team#{team_example(@game.current_team_size)}\""
             else
               m.reply "You are not in the game.", true
@@ -320,7 +344,7 @@ module Cinch
             players = players.split(" ")
             @game.make_team(players)
             if @game.team_selected? 
-              proposed_team = @game.current_round.team.map(&:user).join(', ')
+              proposed_team = @game.current_round.team.players.map(&:user).join(', ')
               Channel(@channel_name).send "#{m.user.nick} is proposing the team: #{proposed_team}."
             else
               User(@game.team_leader.user).send "You don't have enough members on the team. You need #{@game.current_team_size} operatives."
@@ -336,7 +360,7 @@ module Cinch
         if m.user == @game.team_leader.user
           if @game.team_selected? 
             @game.current_round.call_for_votes
-            proposed_team = @game.current_round.team.map(&:user).join(', ')
+            proposed_team = @game.current_round.team.players.map(&:user).join(', ')
             Channel(@channel_name).send "The proposed team: #{proposed_team}. Time to vote!"
             @game.players.each do |p|
               vote_prompt = "Time to vote! Vote whether or not you want the team (#{proposed_team}) to go on the mission or not. \"!vote yes\" or \"!vote no\""
@@ -374,7 +398,7 @@ module Cinch
             valid_options = ['pass']
           end
 
-          if @game.current_round.team.include?(player)
+          if @game.current_round.team.players.include?(player)
             vote.downcase!
             if valid_options.include?(vote)
               @game.vote_for_mission(m.user, vote)
@@ -456,30 +480,20 @@ module Cinch
       def start_new_round
         @game.start_new_round
         two_fail_warning = (@game.player_count >= 7 && @game.current_round.number == 4) ? " This mission requires TWO FAILS for the spies." : ""
-        Channel(@channel_name).send "ROUND #{@game.current_round.number}. Team Leader: #{@game.team_leader.user.nick}. Please choose a team of #{@game.current_team_size} to go on the mission.#{two_fail_warning}"
+        Channel(@channel_name).send "MISSION #{@game.current_round.number}. Team Leader: #{@game.team_leader.user.nick}. Please choose a team of #{@game.current_team_size} to go on the mission.#{two_fail_warning}"
         User(@game.team_leader.user).send "You are team leader. Please choose a team of #{@game.current_team_size} to go on the mission. \"!team#{team_example(@game.current_team_size)}\""
       end
 
       def process_team_votes
         # reveal the votes
-        team_votes = @game.current_round.team_votes
-        yes_votes = team_votes.select{ |p, v| v == 'yes' }.map {|p, v| p.user.nick }
-        no_votes  = team_votes.select{ |p, v| v == 'no'  }.map {|p, v| p.user.nick }
-        if no_votes.empty?
-          votes = "YES - #{yes_votes.join(", ")}"
-        elsif yes_votes.empty?
-          votes = "NO - #{no_votes.join(", ")}"
-        else
-          votes = "YES - #{yes_votes.join(", ")} | NO - #{no_votes.join(", ")}"
-        end
-        Channel(@channel_name).send "The votes are in for the team: #{@game.current_round.team.map(&:user).join(', ')}"
-        Channel(@channel_name).send votes
+        Channel(@channel_name).send "The votes are in for the team: #{@game.current_round.team.players.map(&:user).join(', ')}"
+        Channel(@channel_name).send self.format_votes(@game.current_round.team.team_votes)
 
         # determine if team makes
         if @game.current_round.team_makes?
           @game.go_on_mission
           Channel(@channel_name).send "This team is going on the mission!"
-          @game.current_round.team.each do |p|
+          @game.current_round.team.players.each do |p|
             if p.spy?
               mission_prompt = 'Mission time! Since you are a spy, you have the option to PASS or FAIL the mission. "!mission pass" or "!mission fail"'
             else
@@ -494,10 +508,25 @@ module Cinch
             self.do_end_game
           else
             Channel(@channel_name).send "ROUND #{@game.current_round.number}. #{@game.team_leader.user.nick} is the new team leader. Please choose a team of #{@game.current_team_size} to go on the this mission."
+            User(@game.team_leader.user).send "You are the new team leader. Please choose a team of #{@game.current_team_size} to go on the mission. \"!team#{team_example(@game.current_team_size)}\""
             @game.current_round.back_to_team_making
           end
 
         end
+      end
+
+      def format_votes(team_votes)
+        yes_votes = team_votes.select{ |p, v| v == 'yes' }.map {|p, v| p.user.nick }
+        no_votes  = team_votes.select{ |p, v| v == 'no'  }.map {|p, v| p.user.nick }
+        if no_votes.empty?
+          votes = "YES - #{yes_votes.join(", ")}"
+        elsif yes_votes.empty?
+          votes = "NO - #{no_votes.join(", ")}"
+        else
+          votes = "YES - #{yes_votes.join(", ")} | NO - #{no_votes.join(", ")}"
+        end
+
+        votes
       end
 
       def process_mission_votes
@@ -576,6 +605,13 @@ module Cinch
       
 
       CHANGELOG = [
+        {
+          :date => "2012-09-17",
+          :changes => [
+            "Added ability to see team makings for past missions - !mission#", 
+            "!team# will report current team as AWAY ON MISSION"
+          ]
+        },
         {
           :date => "2012-09-16",
           :changes => [

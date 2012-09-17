@@ -185,11 +185,11 @@ class Game
   # BUILDING TEAMS
 
   def assign_team_leader
-    @current_round.team_leader = self.players.rotate!.first
+    @current_round.team.assign_team_leader(self.players.rotate!.first)
   end
 
   def make_team(players)
-    @current_round.team = []
+    @current_round.team.clear_team
     players.each do |player|
       self.add_to_team(player)
     end
@@ -198,24 +198,24 @@ class Game
 
   def add_to_team(player)
     found_player = self.find_player(player)
-    if found_player && @current_round.team.length < current_team_size
-      @current_round.team << found_player
+    if found_player && @current_round.team.size < current_team_size
+      @current_round.team.add_to_team(found_player)
       added = found_player
     end
     added || nil
   end
 
   def team_selected?
-    @current_round.team.length == current_team_size
+    @current_round.team.size == current_team_size
   end
 
   def vote_for_team(player, vote)
-    @current_round.team_votes[self.find_player(player)] = vote
+    @current_round.team.add_vote(self.find_player(player), vote)
   end
 
   def not_voted
     all_players = self.players
-    voted_players = @current_round.team_votes.keys
+    voted_players = @current_round.team.voted
     not_voted = all_players.reject{ |player| voted_players.include?(player) }
     not_voted
   end
@@ -225,8 +225,7 @@ class Game
   end
 
   def try_making_team_again
-    @current_round.fail_count += 1
-    @current_round.clear_team
+    @current_round.make_new_team
     self.assign_team_leader
   end
 
@@ -237,7 +236,7 @@ class Game
   end
 
   def not_back_from_mission
-    team_players = @current_round.team
+    team_players = @current_round.team.players
     back_players = @current_round.mission_votes.keys
     not_back = team_players.reject{ |player| back_players.include?(player) }
     not_back
@@ -328,7 +327,7 @@ class Game
   def get_prev_round(number)
     round = self.rounds.find{ |r| r.number == number }
 
-    (!(round.nil?) && round.ended? ) ? round : nil
+    #(!(round.nil?) && round.ended? ) ? round : nil
   end
 
   #----------------------------------------------
@@ -360,16 +359,27 @@ end
 
 class Round
 
-  attr_accessor :team, :team_leader, :number, :team_votes, :mission_votes, :fail_count, :state
+  attr_accessor :teams, :number, :mission_votes, :state
 
   def initialize(number)
     self.state         = :team_making # team_making, :team_confirm, vote, mission, end
     self.number        = number
-    self.team          = []
-    self.team_votes    = {}
+    self.teams         = [Team.new]
     self.mission_votes = {}
-    self.team_leader   = nil
-    self.fail_count    = 0
+  end
+
+  # the current round team is the last team
+  def team
+    self.teams.last
+  end
+
+  # proxy for team team leader
+  def team_leader
+    self.team.team_leader
+  end
+
+  def fail_count
+    self.teams.size - 1
   end
 
   def too_many_fails?
@@ -377,17 +387,17 @@ class Round
   end
 
   def team_makes?
-    votes = self.team_votes.values
-    votes.count('yes') > votes.count('no')
+    self.team.team_makes?
   end
 
-  def clear_team
-    self.team       = []
-    self.team_votes = {}
+  def make_new_team
+    self.teams << Team.new
   end
+
+  # Mission methods
 
   def mission_success?
-    player_count = self.team_votes.size  
+    player_count = self.team.team_votes.size  # to get player count
     mission_score = self.mission_fails
     if player_count >= 7 && self.number == 4 # with more than 7 players on round 4
       success = mission_score < 2 # need 2 fails
@@ -419,7 +429,6 @@ class Round
     self.state == :end
   end
 
-
   def back_to_team_making
     self.state = :team_making
   end
@@ -437,6 +446,52 @@ class Round
   end
 
 
+
+end
+
+
+#================================================================================
+# TEAM
+#================================================================================
+
+class Team
+
+  attr_accessor :team_leader, :players, :team_votes
+
+  def initialize
+    self.team_leader = nil
+    self.team_votes  = {}
+    self.players     = []
+  end
+
+  def assign_team_leader(player)
+    self.team_leader = player
+  end
+
+  def add_to_team(player)
+    self.players << player
+  end
+
+  def clear_team
+    self.players = []
+  end
+
+  def size
+    self.players.length
+  end
+
+  def add_vote(player, vote)
+    self.team_votes[player] = vote
+  end
+
+  def voted
+    self.team_votes.keys
+  end
+
+  def team_makes?
+    votes = self.team_votes.values
+    votes.count('yes') > votes.count('no')
+  end
 
 end
 
