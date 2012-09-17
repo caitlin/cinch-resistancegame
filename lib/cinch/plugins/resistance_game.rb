@@ -50,6 +50,7 @@ module Cinch
 
 
       listen_to :join,          :method => :voice_if_in_game
+      listen_to :part,          :method => :remove_if_not_started
       #listen_to :join,          :method => :devoice_everyone_on_start
 
       #--------------------------------------------------------------------------------
@@ -59,6 +60,15 @@ module Cinch
       def voice_if_in_game(m)
         if @game.has_player?(m.user)
           Channel(@channel_name).voice(m.user)
+        end
+      end
+
+      def remove_if_not_started(m)
+        if @game.not_started?
+          left = @game.remove_player(m.user)
+          unless left.nil?
+            Channel(@channel_name).send "#{m.user.nick} has left the game (#{@game.players.count}/#{Game::MAX_PLAYERS})"
+          end
         end
       end
 
@@ -608,8 +618,9 @@ module Cinch
         {
           :date => "2012-09-17",
           :changes => [
-            "Added ability to see team makings for past missions - !mission#", 
-            "!team# will report current team as AWAY ON MISSION"
+            "Added ability to see team votes for past missions - !mission#", 
+            "!team# will report current team as AWAY ON MISSION",
+            "Bot removes user from game if they leave channel and game hasn't started"
           ]
         },
         {
