@@ -35,7 +35,7 @@ module Cinch
       match /teams/i,          :method => :get_teams
       match /mission(\d)/i,    :method => :mission_summary
       match /score/i,          :method => :score
-      match /team_sizes/i,     :method => :team_sizes
+      match /info/i,           :method => :game_info
       match /status/i,         :method => :status
       match /help/i,           :method => :help
       match /intro/i,          :method => :intro
@@ -166,9 +166,9 @@ module Cinch
         m.reply self.game_score
       end
 
-      def team_sizes(m)
+      def game_info(m)
         if @game.started?
-          m.reply @game.team_sizes.values.join(", ")
+          m.reply "There are #{@game.spies.count} spies. Team sizes will be: #{@game.team_sizes.values.join(", ")}"
         end
       end
 
@@ -647,8 +647,9 @@ module Cinch
             "Added ability to see team votes for past missions - !mission#", 
             "!team# will report current team as AWAY ON MISSION",
             "Bot removes user from game if they leave channel and game hasn't started",
-            "!settings changes will announce to channel", 
-            "!settings without arguments shows current settings"
+            "!settings changes will announce to channel",
+            "!settings without arguments shows current settings",
+            "replaced !team_sizes with a more detailed !info"
           ]
         },
         {
