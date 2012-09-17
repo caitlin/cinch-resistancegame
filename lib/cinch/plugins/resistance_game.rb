@@ -202,12 +202,7 @@ module Cinch
       #--------------------------------------------------------------------------------
 
       def is_mod?(nick)
-        # make sure that the nick is in the mod list and the user in authenticated
-        puts "="*80
-        puts "@mods.include?(nick) => #{@mods.include?(nick)}"
-        puts "User(nick).authed? => #{User(nick).authed?}"
-        puts "="*80
-        
+        # make sure that the nick is in the mod list and the user in authenticated        
         @mods.include?(nick) && User(nick).authed?
       end
 
@@ -216,8 +211,6 @@ module Cinch
           @game = Game.new
           self.devoice_channel
           m.reply "The game has been reset."
-        else 
-          User(m.user).send "You cannot do that."
         end
       end
 
@@ -237,8 +230,6 @@ module Cinch
 
           # tell loyalty to new player
           self.tell_loyalty_to(player)
-        else 
-          User(m.user).send "You cannot do that."
         end
       end
 
@@ -586,7 +577,7 @@ module Cinch
 
       CHANGELOG = [
         {
-          :date => "2012-09-12",
+          :date => "2012-09-16",
           :changes => [
             "Updated the rules, with timotab's better rules",
             "Bot devoices everyone on reset",
