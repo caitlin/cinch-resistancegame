@@ -47,6 +47,7 @@ module Cinch
    
       match /reset/i,              :method => :reset_game
       match /replace (.+?) (.+)/i, :method => :replace_user
+      match /kick (.+)/i,          :method => :kick_user
 
 
       listen_to :join,          :method => :voice_if_in_game
@@ -248,6 +249,21 @@ module Cinch
         end
       end
 
+      def kick_user(m, nick)
+        if self.is_mod? m.user.nick
+          if @game.not_started?
+            user = User(nick)
+            left = @game.remove_player(user)
+            unless left.nil?
+              Channel(@channel_name).send "#{user.nick} has left the game (#{@game.players.count}/#{Game::MAX_PLAYERS})"
+              Channel(@channel_name).devoice(user)
+            end
+          else
+            User(m.user).send "You can't kick someone while a game is in progress."
+          end
+        end
+      end
+
       def replace_user(m, nick1, nick2)
         if self.is_mod? m.user.nick
           # find irc users based on nick
@@ -279,10 +295,10 @@ module Cinch
           options.keep_if{ |opt| valid_options.include?(opt.downcase) }
           roles = (["merlin", "assassin"] + options)
           @game.change_type "avalon", roles.map(&:to_sym)
-          m.reply "The game has been changed to Avalon. Using roles: #{roles.map(&:capitalize).join(", ")}."
+          Channel(@channel_name).send "The game has been changed to Avalon. Using roles: #{roles.map(&:capitalize).join(", ")}."
         else
           @game.change_type "base"
-          m.reply "The game has been changed to base."
+          Channel(@channel_name).send "The game has been changed to base."
         end
       end
 
