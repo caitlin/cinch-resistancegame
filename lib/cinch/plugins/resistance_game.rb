@@ -37,7 +37,7 @@ module Cinch
       match /score/i,          :method => :score
       match /info/i,           :method => :game_info
       match /status/i,         :method => :status
-      match /help/i,           :method => :help
+      match /help ?(\d+)?/i,   :method => :help
       match /intro/i,          :method => :intro
       match /rules/i,          :method => :rules
       match /settings$/i,      :method => :game_settings       
@@ -84,16 +84,33 @@ module Cinch
       #--------------------------------------------------------------------------------
       # Helpers
       #--------------------------------------------------------------------------------
-      def help(m)
-        User(m.user).send "!join - joins the game"
-        User(m.user).send "!leave - leaves the game"
-        User(m.user).send "!start - starts the game"
-        User(m.user).send "!invite - invites #boardgames to join the game"
-        User(m.user).send "!team user1 user2 user3 - chooses a team with the specified users on it"
-        User(m.user).send "!vote yes|no - vote for teams to make or not, yes or no"
-        User(m.user).send "!mission pass|fail - vote for missions to pass or not, pass or fail"
-        User(m.user).send "!who - returns a player list of who is playing, in team leader order"
-        User(m.user).send "!team1, !team2, ... - shows teams after they've been created"
+      def help(m, page)
+        case page
+        when "2"
+          User(m.user).send "--- HELP PAGE 2/3 ---"
+          User(m.user).send "!info - shows spy count and team sizes for the game"
+          User(m.user).send "!who - returns a player list of who is playing, in team leader order"
+          User(m.user).send "!status - shows current status of the game, which phase of the round the game is in"
+          User(m.user).send "!team1, !team2, ... - shows a specific team after they've been created"
+          User(m.user).send "!teams - shows all previous teams"
+          User(m.user).send "!mission1, !mission2, ... - shows a mission summary, including team voting history"
+        when "3"
+          User(m.user).send "--- HELP PAGE 3/3 ---"
+          User(m.user).send "!subscribe - subscribe your current nick to receive PMs when someone calls !invite"
+          User(m.user).send "!unsubscribe - remove your nick from the invitation list"
+          User(m.user).send "!invite - invites #boardgames and subscribers to join the game"
+          User(m.user).send "!changelog (#) - shows changelog for the bot, when provided a number it showed details"
+        else
+          User(m.user).send "--- HELP PAGE 1/3 ---"
+          User(m.user).send "!join - joins the game"
+          User(m.user).send "!leave - leaves the game"
+          User(m.user).send "!start - starts the game"
+          User(m.user).send "!team user1 user2 user3 - proposes a team with the specified users on it"
+          User(m.user).send "!team confirm - puts the proposed team up for voting"
+          User(m.user).send "!vote yes|no - vote for teams to make or not, yes or no"
+          User(m.user).send "!mission pass|fail - vote for missions to pass or not, pass or fail"
+          User(m.user).send "!help (#) - when provided a number, pulls up specified page"
+        end
       end
 
       def intro(m)
@@ -649,7 +666,8 @@ module Cinch
             "Bot removes user from game if they leave channel and game hasn't started",
             "!settings changes will announce to channel",
             "!settings without arguments shows current settings",
-            "replaced !team_sizes with a more detailed !info"
+            "replaced !team_sizes with a more detailed !info",
+            "updated help pages"
           ]
         },
         {
