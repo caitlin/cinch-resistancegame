@@ -27,22 +27,24 @@ module Cinch
       match /mission (.+)/i, :method => :mission_vote
 
       # helpers
-      match /invite/i,             :method => :invite
-      match /subscribe/i,          :method => :subscribe
-      match /unsubscribe/i,        :method => :unsubscribe
-      match /who/i,                :method => :list_players
-      match /team(\d)/i,           :method => :get_team
-      match /teams/i,              :method => :get_teams
-      match /mission(\d)/i,        :method => :mission_summary
-      match /score/i,              :method => :score
-      match /team_sizes/i,         :method => :team_sizes
-      match /status/i,             :method => :status
-      match /help/i,               :method => :help
-      match /intro/i,              :method => :intro
-      match /rules/i,              :method => :rules
-      match /settings (.+)/i,      :method => :game_settings
+      match /invite/i,         :method => :invite
+      match /subscribe/i,      :method => :subscribe
+      match /unsubscribe/i,    :method => :unsubscribe
+      match /who/i,            :method => :list_players
+      match /team(\d)/i,       :method => :get_team
+      match /teams/i,          :method => :get_teams
+      match /mission(\d)/i,    :method => :mission_summary
+      match /score/i,          :method => :score
+      match /team_sizes/i,     :method => :team_sizes
+      match /status/i,         :method => :status
+      match /help/i,           :method => :help
+      match /intro/i,          :method => :intro
+      match /rules/i,          :method => :rules
+      match /settings$/i,      :method => :game_settings       
+
+      match /settings (.+)/i, :method => :set_game_settings
    
-      match "changelog",           :method => :changelog_dir
+      match /changelog$/i,         :method => :changelog_dir
       match /changelog (\d+)/i,    :method => :changelog
    
       match /reset/i,              :method => :reset_game
@@ -287,7 +289,15 @@ module Cinch
       # Game Settings
       #--------------------------------------------------------------------------------
 
-      def game_settings(m, options)
+      def game_settings(m)
+        if @game.type == :base
+          m.reply "Game settings: Base."
+        elsif @game.type == :avalon
+          m.reply "Game settings: Avalon. Using roles: #{@game.roles.map(&:capitalize).join(", ")}."
+        end
+      end
+
+      def set_game_settings(m, options)
         options = options.split(" ")
         game_type = options.shift
         if game_type.downcase == "avalon"
@@ -636,7 +646,9 @@ module Cinch
           :changes => [
             "Added ability to see team votes for past missions - !mission#", 
             "!team# will report current team as AWAY ON MISSION",
-            "Bot removes user from game if they leave channel and game hasn't started"
+            "Bot removes user from game if they leave channel and game hasn't started",
+            "!settings changes will announce to channel", 
+            "!settings without arguments shows current settings"
           ]
         },
         {

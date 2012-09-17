@@ -92,7 +92,7 @@ class Game
   end
 
   def change_type(type, roles = {})
-    self.type = type
+    self.type = type.to_sym
     if type == "avalon" 
       self.roles = roles
     else
@@ -101,7 +101,7 @@ class Game
   end
 
   def avalon?
-    self.type == "avalon"
+    self.type == :avalon
   end
 
   def mark_invitation_sent
