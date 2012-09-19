@@ -398,7 +398,12 @@ module Cinch
 
               self.pass_out_loyalties
 
-              Channel(@channel_name).send "The game has started. There are #{@game.spies.count} spies. Team sizes will be: #{@game.team_sizes.values.join(", ")}"
+              avalon_note = @game.avalon? ? " This is Resistance: Avalon, with #{@game.roles.map(&:capitalize).join(", ")}." : ""
+
+              Channel(@channel_name).send "The game has started. There are #{@game.spies.count} spies. Team sizes will be: #{@game.team_sizes.values.join(", ")}.#{avalon_note}"
+              if @game.player_count >= 7
+                Channel(@channel_name).send "This is a 7+ player game. Mission 4 will require TWO FAILS for the Spies."
+              end
               Channel(@channel_name).send "Player order is: #{@game.players.map{ |p| p.user.nick }.join(' ')}"
               Channel(@channel_name).send "MISSION #{@game.current_round.number}. Team Leader: #{@game.team_leader.user.nick}. Please choose a team of #{@game.current_team_size} to go on the first mission."
               User(@game.team_leader.user).send "You are team leader. Please choose a team of #{@game.current_team_size} to go on first mission. \"!team#{team_example(@game.current_team_size)}\""
