@@ -206,7 +206,7 @@ module Cinch
 
       def game_info(m)
         if @game.started?
-          m.reply "There are #{@game.spies.count} spies. Team sizes will be: #{@game.team_sizes.values.join(", ")}"
+          m.reply self.get_game_info
         end
       end
 
@@ -400,7 +400,7 @@ module Cinch
 
               avalon_note = @game.avalon? ? " This is Resistance: Avalon, with #{@game.roles.map(&:capitalize).join(", ")}." : ""
 
-              Channel(@channel_name).send "The game has started. There are #{@game.spies.count} spies. Team sizes will be: #{@game.team_sizes.values.join(", ")}.#{avalon_note}"
+              Channel(@channel_name).send "The game has started. There are #{@game.spies.count} spies. #{self.get_game_info}#{avalon_note}"
               if @game.player_count >= 7
                 Channel(@channel_name).send "This is a 7+ player game. Mission 4 will require TWO FAILS for the Spies."
               end
@@ -569,6 +569,14 @@ module Cinch
         User(player.user).send loyalty_msg
       end
 
+      def get_game_info
+        team_sizes = @game.team_sizes.values
+        if @game.player_count >= 7
+          team_sizes[3] = team_sizes.at(3).to_s + "*"
+        end
+        "There are #{@game.spies.count} spies. Team sizes will be: #{team_sizes.join(", ")}"
+      end
+
       def start_new_round
         @game.start_new_round
         two_fail_warning = (@game.current_round.special_round?) ? " This mission requires TWO FAILS for the spies." : ""
@@ -663,6 +671,7 @@ module Cinch
         @game = Game.new
       end
 
+
       def game_score
         @game.mission_results.map{ |mr| mr ? "O" : "X" }.join(" ")
       end
@@ -711,7 +720,8 @@ module Cinch
             "Added notice for hammer_warning",
             "Bug fix: Bot will only accept unique users now for team",
             "Bot provides better error feedback for team making",
-            "Commas are now allowed when making teams"
+            "Commas are now allowed when making teams",
+            "Added * on team sizes for M4 in 7+ games"
           ]
         },
         {
