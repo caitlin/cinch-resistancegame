@@ -296,6 +296,10 @@ class Game
   # Helpers 
   #----------------------------------------------
 
+  def in_special_round?
+    self.player_count >= 7 && self.current_round.number == 4
+  end
+
   def player_count
     self.players.count
   end

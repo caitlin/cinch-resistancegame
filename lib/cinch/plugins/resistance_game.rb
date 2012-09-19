@@ -157,11 +157,19 @@ module Cinch
           if ! prev_round.nil? && (prev_round.ended? || prev_round.in_mission_phase?)
             team = prev_round.team
             if prev_round.ended?
-              mission_result = prev_round.mission_success? ? "PASSED" : "FAILED (#{prev_round.mission_fails})"
+              if prev_round.mission_success?
+                if @game.in_special_round?
+                  mission_result = "PASSED (#{prev_round.mission_fails} FAILS)"
+                else
+                  mission_result = "PASSED"
+                end
+              else
+                mission_result = "FAILED (#{prev_round.mission_fails})"
+              end
             else
               mission_result = "AWAY ON MISSION"
             end
-            m.reply "MISSION #{number} - Leader: #{prev_round.team_leader.user.nick} - #{team.players.map{ |p| p.user.nick }.join(', ')} - #{mission_result}"
+            m.reply "MISSION #{number} - Leader: #{prev_round.team_leader.user.nick} - Team: #{team.players.map{ |p| p.user.nick }.join(', ')} - #{mission_result}"
           else
             #m.reply "A team hasn't been made for that round yet."
           end
@@ -542,7 +550,7 @@ module Cinch
 
       def start_new_round
         @game.start_new_round
-        two_fail_warning = (@game.player_count >= 7 && @game.current_round.number == 4) ? " This mission requires TWO FAILS for the spies." : ""
+        two_fail_warning = (@game.in_special_round?) ? " This mission requires TWO FAILS for the spies." : ""
         Channel(@channel_name).send "MISSION #{@game.current_round.number}. Team Leader: #{@game.team_leader.user.nick}. Please choose a team of #{@game.current_team_size} to go on the mission.#{two_fail_warning}"
         User(@game.team_leader.user).send "You are team leader. Please choose a team of #{@game.current_team_size} to go on the mission. \"!team#{team_example(@game.current_team_size)}\""
       end
@@ -570,7 +578,7 @@ module Cinch
           if @game.current_round.too_many_fails?
             self.do_end_game
           else
-            Channel(@channel_name).send "ROUND #{@game.current_round.number}. #{@game.team_leader.user.nick} is the new team leader. Please choose a team of #{@game.current_team_size} to go on the this mission."
+            Channel(@channel_name).send "MISSION #{@game.current_round.number}. #{@game.team_leader.user.nick} is the new team leader. Please choose a team of #{@game.current_team_size} to go on the this mission."
             User(@game.team_leader.user).send "You are the new team leader. Please choose a team of #{@game.current_team_size} to go on the mission. \"!team#{team_example(@game.current_team_size)}\""
             @game.current_round.back_to_team_making
           end
@@ -675,7 +683,8 @@ module Cinch
             "Added Avalon rules \"!rules avalon\" (thanks timotab!)",
             "Shuffled the YES/NO votes on team voting results",
             "Changed !who to reply where asked",
-            "Replace !teams with !missions; removed !team#"
+            "Replace !teams with !missions; removed !team#",
+            "Added a fail count to passing missions in !missions for 7+ M4 games"
           ]
         },
         {
