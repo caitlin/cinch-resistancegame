@@ -39,7 +39,7 @@ module Cinch
       match /status/i,         :method => :status
       match /help ?(\d+)?/i,   :method => :help
       match /intro/i,          :method => :intro
-      match /rules/i,          :method => :rules
+      match /rules ?(.+)?/i,   :method => :rules
       match /settings$/i,      :method => :game_settings       
 
       match /settings (.+)/i, :method => :set_game_settings
@@ -54,6 +54,7 @@ module Cinch
 
       listen_to :join,          :method => :voice_if_in_game
       listen_to :part,          :method => :remove_if_not_started
+      listen_to :quit,          :method => :remove_if_not_started
       #listen_to :join,          :method => :devoice_everyone_on_start
 
       #--------------------------------------------------------------------------------
@@ -96,6 +97,7 @@ module Cinch
           User(m.user).send "!mission1, !mission2, ... - shows a mission summary, including team voting history"
         when "3"
           User(m.user).send "--- HELP PAGE 3/3 ---"
+          User(m.user).send "!rules (avalon|avroles) - provides rules for the game; when provided with an argument, provides specified rules"
           User(m.user).send "!subscribe - subscribe your current nick to receive PMs when someone calls !invite"
           User(m.user).send "!unsubscribe - remove your nick from the invitation list"
           User(m.user).send "!invite - invites #boardgames and subscribers to join the game"
@@ -119,13 +121,27 @@ module Cinch
         User(m.user).send "** When you vote for teams and missions (!vote and !mission), MAKE SURE you are PMing with ResistanceBot. You could accidentally reveal your loyalty and ruin the game otherwise."
       end
 
-      def rules(m)
-        User(m.user).send "GAME SETUP: When the game starts, ResistanceBot will PM you to tell you whether you are a Resistance or a Spy. If you are a Spy, it will also tell you who the other Spies are.  The number of Spies is dependent on the total number of players, but will always be strictly less than the number of Resistance members."
-        User(m.user).send "HOW TO WIN: There will be up to 5 Missions. If you are a member of the Resistance, you and the rest of the Resistance will win if 3 Missions Pass.  If you are a Spy, you and the other Spies will win if 3 Missions Fail. The game is over as soon as one of those conditions is met. There is another win condition for the Spies, explained below."
-        User(m.user).send "HOW TO PLAY: The Team Leader for the round will Propose a Team to go on the Mission. The Team size changes from Mission to Mission, and Team sizes for the game are dependent on the number of players. Everyone then Votes whether they want to approve the Proposed Team to go on the Mission or not. Votes are made in secret, but how players Voted will be publicly revealed after all Votes are in. This is a majority Vote, and a tie means the Proposed Team will not go on the Mission."
-        User(m.user).send "If the Team is not approved, the next player becomes the Team Leader and proposes a new Team. If the Team proposal process fails 5 times in a row, the Spies win the game immediately; in practice, as there are always fewer Spies than Resistance, this means that everyone should vote to approve the fifth proposed Team since the last Mission."
-        User(m.user).send "When a proposed Team has been approved, they go on the Mission. The Team members then decide if they want the Mission to Pass or Fail. Resistance can only vote for the Mission to Pass; it is against their objective to do otherwise. Spies can choose to Pass OR Fail. Maybe they want to gain trust; but maybe they want to score a Mission Fail for their team."
-        User(m.user).send "After Mission decisions have been made, the results are shuffled and revealed. It takes only ONE Fail for the whole Mission to Fail. (Exception: in games with 7 or more players, because of the increased number of Spies, it requires TWO Fails for 4th Mission to Fail.) A Mission which does not Fail will Pass. After a Mission has been completed (Pass or Fail), the next player becomes the new Team Leader and proposes the next Team."
+      def rules(m, section)
+        case section
+        when "avalon"
+          User(m.user).send "The Resistance: Avalon is the same basic game as The Resistance, with slightly different terms to fit the theme. However, there are some special roles that some players may have.  By and large, the game is played the same way. However, the special characters change the amount of information that players start the game with."
+          User(m.user).send "All Avalon games include Merlin and The Assassin. Other roles are optional (but have some dependencies)"
+          User(m.user).send "Merlin is a member of the Resistance. His Wizardly abilities allow him to know who the Spies are.  While the Spies know who the Resistance are, they do not know which is Merlin. He can try to pass on information about the Spies, but he must be careful, lest the Spies identify him."
+          User(m.user).send "The Assassin is a Spy. At the end of the game, if the Resistance have three successful Missions, then this is the Spies' last chance. The Assassin discusses with the other Spies who they think is Merlin. Once the Assassin has received guidance, he chooses a Resistance member to assassinate. If their victim really is Merlin, the Spies win. Otherwise, the Resistance win."
+          User(m.user).send "For information about the optional roles, see !rules avroles"
+        when "avroles"
+          User(m.user).send "Percival is a member of the Resistance. He learns who Merlin is. He can use what Merlin says, and how he votes to garner information about the Spies. His principle aim, however, is to draw the attention of the Assassin away from Merlin. If the Resistance succeed in 3 Missions, if Percival has done his job right, the Assassin will fail to kill Merlin. However, watch out if Morgana is in the game."
+          User(m.user).send "Mordred is a Spy. The other Spies know he is a Spy but do not know that he is Mordred. Merlin is unable to identify him, which means he doesn't have full information on all the Spies. (Merlin will see one fewer spies than are in the game)"
+          User(m.user).send "Oberon is a Spy. However, he doesn't know who his fellow Spies are, and they do not know him, either.  (The other Spies will see one fewer Spies than are in the game). Merlin can identify Oberon as a Spy."
+          User(m.user).send "Morgana is a Spy. Percival must be in the game to use Morgana. The other Spies know her as a Spy, as does Merlin, but none of them know her identity as Morgana.  However, Morgana's magic allows her to appear to Percival as if she were Merlin.  Percival will see two people claiming to be Merlin. He will know one is Resistance, the other a Spy. But he will not know for sure whose votes and conversation to trust."
+        else
+          User(m.user).send "GAME SETUP: When the game starts, ResistanceBot will PM you to tell you whether you are a Resistance or a Spy. If you are a Spy, it will also tell you who the other Spies are.  The number of Spies is dependent on the total number of players, but will always be strictly less than the number of Resistance members."
+          User(m.user).send "HOW TO WIN: There will be up to 5 Missions. If you are a member of the Resistance, you and the rest of the Resistance will win if 3 Missions Pass.  If you are a Spy, you and the other Spies will win if 3 Missions Fail. The game is over as soon as one of those conditions is met. There is another win condition for the Spies, explained below."
+          User(m.user).send "HOW TO PLAY: The Team Leader for the round will Propose a Team to go on the Mission. The Team size changes from Mission to Mission, and Team sizes for the game are dependent on the number of players. Everyone then Votes whether they want to approve the Proposed Team to go on the Mission or not. Votes are made in secret, but how players Voted will be publicly revealed after all Votes are in. This is a majority Vote, and a tie means the Proposed Team will not go on the Mission."
+          User(m.user).send "If the Team is not approved, the next player becomes the Team Leader and proposes a new Team. If the Team proposal process fails 5 times in a row, the Spies win the game immediately; in practice, as there are always fewer Spies than Resistance, this means that everyone should vote to approve the fifth proposed Team since the last Mission."
+          User(m.user).send "When a proposed Team has been approved, they go on the Mission. The Team members then decide if they want the Mission to Pass or Fail. Resistance can only vote for the Mission to Pass; it is against their objective to do otherwise. Spies can choose to Pass OR Fail. Maybe they want to gain trust; but maybe they want to score a Mission Fail for their team."
+          User(m.user).send "After Mission decisions have been made, the results are shuffled and revealed. It takes only ONE Fail for the whole Mission to Fail. (Exception: in games with 7 or more players, because of the increased number of Spies, it requires TWO Fails for 4th Mission to Fail.) A Mission which does not Fail will Pass. After a Mission has been completed (Pass or Fail), the next player becomes the new Team Leader and proposes the next Team."
+        end
       end
 
       def list_players(m)
@@ -658,6 +674,12 @@ module Cinch
       
 
       CHANGELOG = [
+        {
+          :date => "2012-09-18",
+          :changes => [
+            "Bot removes user from game if they quit server and game hasn't started"
+          ]
+        },
         {
           :date => "2012-09-17",
           :changes => [
