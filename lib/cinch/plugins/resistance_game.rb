@@ -586,7 +586,8 @@ module Cinch
           if @game.current_round.too_many_fails?
             self.do_end_game
           else
-            Channel(@channel_name).send "MISSION #{@game.current_round.number}. #{@game.team_leader.user.nick} is the new team leader. Please choose a team of #{@game.current_team_size} to go on the this mission."
+            hammer_warning = (@game.current_round.hammer_team?) ? " This is your LAST chance at making a team for this mission; if this team is not accepted, the Resistance loses." : ""
+            Channel(@channel_name).send "MISSION #{@game.current_round.number}. #{@game.team_leader.user.nick} is the new team leader. Please choose a team of #{@game.current_team_size} to go on the this mission.#{hammer_warning}"
             User(@game.team_leader.user).send "You are the new team leader. Please choose a team of #{@game.current_team_size} to go on the mission. \"!team#{team_example(@game.current_team_size)}\""
             @game.current_round.back_to_team_making
           end
@@ -692,7 +693,9 @@ module Cinch
             "Shuffled the YES/NO votes on team voting results",
             "Changed !who to reply where asked",
             "Replace !teams with !missions; removed !team#",
-            "Added a fail count to passing missions in !missions for 7+ M4 games"
+            "Added a fail count to passing missions in !missions for 7+ M4 games",
+            "Added Avalon notice and 7+ M4 reminder to game start",
+            "Added notice for hammer teams"
           ]
         },
         {

@@ -276,7 +276,7 @@ class Game
   end
 
   def mission_results
-    self.rounds.map { |r| r.mission_success? }
+    self.rounds.map { |r| r.ended? ? r.mission_success? : nil }
   end
 
   def is_over?
@@ -392,6 +392,10 @@ class Round
 
   def too_many_fails?
     self.fail_count >= 5 
+  end
+
+  def hammer_team?
+    self.fail_count == 4
   end
 
   def team_makes?
