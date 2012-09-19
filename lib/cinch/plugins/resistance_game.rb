@@ -31,8 +31,7 @@ module Cinch
       match /subscribe/i,      :method => :subscribe
       match /unsubscribe/i,    :method => :unsubscribe
       match /who/i,            :method => :list_players
-      match /team(\d)/i,       :method => :get_team
-      match /teams/i,          :method => :get_teams
+      match /missions/i,       :method => :missions_overview
       match /mission(\d)/i,    :method => :mission_summary
       match /score/i,          :method => :score
       match /info/i,           :method => :game_info
@@ -92,8 +91,7 @@ module Cinch
           User(m.user).send "!info - shows spy count and team sizes for the game"
           User(m.user).send "!who - returns a player list of who is playing, in team leader order"
           User(m.user).send "!status - shows current status of the game, which phase of the round the game is in"
-          User(m.user).send "!team1, !team2, ... - shows a specific team after they've been created"
-          User(m.user).send "!teams - shows all previous teams"
+          User(m.user).send "!missions - shows all previous mission results"
           User(m.user).send "!mission1, !mission2, ... - shows a mission summary, including team voting history"
         when "3"
           User(m.user).send "--- HELP PAGE 3/3 ---"
@@ -152,26 +150,22 @@ module Cinch
         end
       end
 
-      def get_team(m, round_number)
-        number = round_number.to_i
-        prev_round = @game.get_prev_round(number)
-        if ! prev_round.nil? && (prev_round.ended? || prev_round.in_mission_phase?)
-          team = prev_round.team
-          if prev_round.ended?
-            mission_result = prev_round.mission_success? ? "PASSED" : "FAILED (#{prev_round.mission_fails})"
-          else
-            mission_result = "AWAY ON MISSION"
-          end
-          m.reply "TEAM #{number} - Leader: #{prev_round.team_leader.user.nick} - #{team.players.map{ |p| p.user.nick }.join(', ')} - #{mission_result}"
-        else
-          #m.reply "A team hasn't been made for that round yet."
-        end
-      end
-
-      def get_teams(m)
+      def missions_overview(m)
         round = @game.current_round.number
-        (1..round).to_a.each do |i|
-          self.get_team(m, i)
+        (1..round).to_a.each do |number|
+          prev_round = @game.get_prev_round(number)
+          if ! prev_round.nil? && (prev_round.ended? || prev_round.in_mission_phase?)
+            team = prev_round.team
+            if prev_round.ended?
+              mission_result = prev_round.mission_success? ? "PASSED" : "FAILED (#{prev_round.mission_fails})"
+            else
+              mission_result = "AWAY ON MISSION"
+            end
+            m.reply "MISSION #{number} - Leader: #{prev_round.team_leader.user.nick} - #{team.players.map{ |p| p.user.nick }.join(', ')} - #{mission_result}"
+          else
+            #m.reply "A team hasn't been made for that round yet."
+          end
+
         end
       end
 
@@ -680,7 +674,8 @@ module Cinch
             "Bot removes user from game if they quit server and game hasn't started",
             "Added Avalon rules \"!rules avalon\" (thanks timotab!)",
             "Shuffled the YES/NO votes on team voting results",
-            "Changed !who to reply where asked"
+            "Changed !who to reply where asked",
+            "Replace !teams with !missions; removed !team#"
           ]
         },
         {
