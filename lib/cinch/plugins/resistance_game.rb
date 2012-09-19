@@ -146,9 +146,9 @@ module Cinch
 
       def list_players(m)
         if @game.players.empty?
-          User(m.user).send "No one has joined the game yet."
+          m.reply "No one has joined the game yet."
         else
-          User(m.user).send @game.players.map{ |p| p.user.nick }.join(' ')
+          m.reply @game.players.map{ |p| p.user.nick }.join(' ')
         end
       end
 
@@ -585,8 +585,8 @@ module Cinch
       end
 
       def format_votes(team_votes)
-        yes_votes = team_votes.select{ |p, v| v == 'yes' }.map {|p, v| p.user.nick }
-        no_votes  = team_votes.select{ |p, v| v == 'no'  }.map {|p, v| p.user.nick }
+        yes_votes = team_votes.select{ |p, v| v == 'yes' }.map {|p, v| p.user.nick }.shuffle
+        no_votes  = team_votes.select{ |p, v| v == 'no'  }.map {|p, v| p.user.nick }.shuffle
         if no_votes.empty?
           votes = "YES - #{yes_votes.join(", ")}"
         elsif yes_votes.empty?
@@ -677,7 +677,10 @@ module Cinch
         {
           :date => "2012-09-18",
           :changes => [
-            "Bot removes user from game if they quit server and game hasn't started"
+            "Bot removes user from game if they quit server and game hasn't started",
+            "Added Avalon rules \"!rules avalon\" (thanks timotab!)",
+            "Shuffled the YES/NO votes on team voting results",
+            "Changed !who to reply where asked"
           ]
         },
         {
