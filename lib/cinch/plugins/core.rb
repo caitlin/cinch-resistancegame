@@ -2,6 +2,7 @@
 # GAME
 #================================================================================
 
+$player_count = 0
 
 class Game
 
@@ -123,6 +124,7 @@ class Game
     self.rounds << @current_round
     self.players.rotate!(rand(MAX_PLAYERS)) # shuffle seats
     self.assign_team_leader
+    $player_count = self.player_count
   end
 
   def save_game
@@ -229,6 +231,12 @@ class Game
     self.assign_team_leader
   end
 
+  def hammer
+    if self.started?
+      self.players.at( 4 - @current_round.fail_count ) # 5 - fail count - 1 for index offset
+    end
+  end
+
   # MISSION
 
   def vote_for_mission(player, vote)
@@ -295,10 +303,6 @@ class Game
   #----------------------------------------------
   # Helpers 
   #----------------------------------------------
-
-  def in_special_round?
-    self.player_count >= 7 && self.current_round.number == 4
-  end
 
   def player_count
     self.players.count
@@ -401,9 +405,8 @@ class Round
   # Mission methods
 
   def mission_success?
-    player_count = self.team.team_votes.size  # to get player count
     mission_score = self.mission_fails
-    if player_count >= 7 && self.number == 4 # with more than 7 players on round 4
+    if self.special_round?
       success = mission_score < 2 # need 2 fails
     else
       success = mission_score < 1 # otherwise need 1 fail
@@ -413,6 +416,11 @@ class Round
 
   def mission_fails
     mission_votes.values.map{|mv| mv == 'fail' ? 1 : 0 }.reduce(:+) 
+  end
+
+
+  def special_round?
+    $player_count >= 7 && self.number == 4
   end
 
   # State methods

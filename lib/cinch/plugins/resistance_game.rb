@@ -5,6 +5,7 @@ require File.expand_path(File.dirname(__FILE__)) + '/core'
 
 module Cinch
   module Plugins
+
     class ResistanceGame
       include Cinch::Plugin
 
@@ -146,7 +147,7 @@ module Cinch
         if @game.players.empty?
           m.reply "No one has joined the game yet."
         else
-          m.reply @game.players.map{ |p| p.user.nick }.join(' ')
+          m.reply @game.players.map{ |p| p == @game.hammer ? "#{p.user.nick}*" : p.user.nick }.join(' ')
         end
       end
 
@@ -158,8 +159,10 @@ module Cinch
             team = prev_round.team
             if prev_round.ended?
               if prev_round.mission_success?
-                if @game.in_special_round?
-                  mission_result = "PASSED (#{prev_round.mission_fails} FAILS)"
+                if prev_round.special_round?
+                  fail_count = prev_round.mission_fails
+                  fail_result = (fail_count == 1 ? "#{fail_count} FAIL" : "#{fail_count} FAILS")
+                  mission_result = "PASSED (#{fail_result})"
                 else
                   mission_result = "PASSED"
                 end
@@ -550,7 +553,7 @@ module Cinch
 
       def start_new_round
         @game.start_new_round
-        two_fail_warning = (@game.in_special_round?) ? " This mission requires TWO FAILS for the spies." : ""
+        two_fail_warning = (@game.current_round.special_round?) ? " This mission requires TWO FAILS for the spies." : ""
         Channel(@channel_name).send "MISSION #{@game.current_round.number}. Team Leader: #{@game.team_leader.user.nick}. Please choose a team of #{@game.current_team_size} to go on the mission.#{two_fail_warning}"
         User(@game.team_leader.user).send "You are team leader. Please choose a team of #{@game.current_team_size} to go on the mission. \"!team#{team_example(@game.current_team_size)}\""
       end
