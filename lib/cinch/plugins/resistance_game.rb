@@ -420,13 +420,26 @@ module Cinch
         if players != "confirm" 
           # make sure the providing user is team leader 
           if m.user == @game.team_leader.user
-            players = players.split(" ")
-            @game.make_team(players)
-            if @game.team_selected? 
-              proposed_team = @game.current_round.team.players.map(&:user).join(', ')
-              Channel(@channel_name).send "#{m.user.nick} is proposing the team: #{proposed_team}."
+            players = players.split(/[\s,]+/).map{ |p| @game.find_player(User(p)) || p }.uniq
+
+            non_players = players.dup.delete_if{ |p| p.is_a? Player }
+            actual_players = players.dup.keep_if{ |p| p.is_a? Player }
+
+            # make sure the names are valid
+            if non_players.count > 0
+              User(@game.team_leader.user).send "You have entered invalid name(s): #{non_players.join(', ')}"
+            # then check sizes
+            elsif players.count < @game.current_team_size
+              User(@game.team_leader.user).send "You don't have enough operatives on the team. You need #{@game.current_team_size}."
+            elsif players.count > @game.current_team_size
+              User(@game.team_leader.user).send "You have too many operatives on the team. You need #{@game.current_team_size}."
+            # then we are okay
             else
-              User(@game.team_leader.user).send "You don't have enough members on the team. You need #{@game.current_team_size} operatives."
+              @game.make_team(actual_players)
+              if @game.team_selected? # another safe check just because
+                proposed_team = @game.current_round.team.players.map(&:user).join(', ')
+                Channel(@channel_name).send "#{m.user.nick} is proposing the team: #{proposed_team}."
+              end
             end
           else
             User(m.user).send "You are not the team leader."
@@ -695,7 +708,10 @@ module Cinch
             "Replace !teams with !missions; removed !team#",
             "Added a fail count to passing missions in !missions for 7+ M4 games",
             "Added Avalon notice and 7+ M4 reminder to game start",
-            "Added notice for hammer teams"
+            "Added notice for hammer_warning",
+            "Bug fix: Bot will only accept unique users now for team",
+            "Bot provides better error feedback for team making",
+            "Commas are now allowed when making teams"
           ]
         },
         {

@@ -199,10 +199,9 @@ class Game
   end
 
   def add_to_team(player)
-    found_player = self.find_player(player)
-    if found_player && @current_round.team.size < current_team_size
-      @current_round.team.add_to_team(found_player)
-      added = found_player
+    if player && @current_round.team.size < current_team_size
+      @current_round.team.add_to_team(player)
+      added = player
     end
     added || nil
   end
