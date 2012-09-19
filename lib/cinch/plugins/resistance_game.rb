@@ -28,28 +28,29 @@ module Cinch
       match /mission (.+)/i, :method => :mission_vote
 
       # helpers
-      match /invite/i,         :method => :invite
-      match /subscribe/i,      :method => :subscribe
-      match /unsubscribe/i,    :method => :unsubscribe
-      match /who/i,            :method => :list_players
-      match /missions/i,       :method => :missions_overview
-      match /mission(\d)/i,    :method => :mission_summary
-      match /score/i,          :method => :score
-      match /info/i,           :method => :game_info
-      match /status/i,         :method => :status
-      match /help ?(\d+)?/i,   :method => :help
-      match /intro/i,          :method => :intro
-      match /rules ?(.+)?/i,   :method => :rules
-      match /settings$/i,      :method => :game_settings       
-
-      match /settings (.+)/i, :method => :set_game_settings
+      match /invite/i,           :method => :invite
+      match /subscribe/i,        :method => :subscribe
+      match /unsubscribe/i,      :method => :unsubscribe
+      match /who$/i,             :method => :list_players
+      match /missions/i,         :method => :missions_overview
+      match /mission(\d)/i,      :method => :mission_summary
+      match /score/i,            :method => :score
+      match /info/i,             :method => :game_info
+      match /status/i,           :method => :status
+      match /help ?(.+)?/i,      :method => :help
+      match /intro/i,            :method => :intro
+      match /rules ?(.+)?/i,     :method => :rules
+      match /settings$/i,        :method => :game_settings       
+      match /settings (.+)/i,    :method => :set_game_settings
+      match /changelog$/i,       :method => :changelog_dir
+      match /changelog (\d+)/i,  :method => :changelog
    
-      match /changelog$/i,         :method => :changelog_dir
-      match /changelog (\d+)/i,    :method => :changelog
-   
+      # mod only commands
       match /reset/i,              :method => :reset_game
       match /replace (.+?) (.+)/i, :method => :replace_user
       match /kick (.+)/i,          :method => :kick_user
+      match /room (.+)/i,          :method => :room_mode
+      match /whospies/i,           :method => :who_spies
 
 
       listen_to :join,          :method => :voice_if_in_game
@@ -86,31 +87,40 @@ module Cinch
       # Helpers
       #--------------------------------------------------------------------------------
       def help(m, page)
-        case page
-        when "2"
-          User(m.user).send "--- HELP PAGE 2/3 ---"
-          User(m.user).send "!info - shows spy count and team sizes for the game"
-          User(m.user).send "!who - returns a player list of who is playing, in team leader order"
-          User(m.user).send "!status - shows current status of the game, which phase of the round the game is in"
-          User(m.user).send "!missions - shows all previous mission results"
-          User(m.user).send "!mission1, !mission2, ... - shows a mission summary, including team voting history"
-        when "3"
-          User(m.user).send "--- HELP PAGE 3/3 ---"
-          User(m.user).send "!rules (avalon|avroles) - provides rules for the game; when provided with an argument, provides specified rules"
-          User(m.user).send "!subscribe - subscribe your current nick to receive PMs when someone calls !invite"
-          User(m.user).send "!unsubscribe - remove your nick from the invitation list"
-          User(m.user).send "!invite - invites #boardgames and subscribers to join the game"
-          User(m.user).send "!changelog (#) - shows changelog for the bot, when provided a number it showed details"
-        else
-          User(m.user).send "--- HELP PAGE 1/3 ---"
-          User(m.user).send "!join - joins the game"
-          User(m.user).send "!leave - leaves the game"
-          User(m.user).send "!start - starts the game"
-          User(m.user).send "!team user1 user2 user3 - proposes a team with the specified users on it"
-          User(m.user).send "!team confirm - puts the proposed team up for voting"
-          User(m.user).send "!vote yes|no - vote for teams to make or not, yes or no"
-          User(m.user).send "!mission pass|fail - vote for missions to pass or not, pass or fail"
-          User(m.user).send "!help (#) - when provided a number, pulls up specified page"
+        if page == "mod" && self.is_mod?(m.user.nick)
+          User(m.user).send "--- HELP PAGE MOD ---"
+          User(m.user).send "!reset - completely resets the game to brand new"
+          User(m.user).send "!replace nick1 nick1 - replaces a player in-game with a player out-of-game"
+          User(m.user).send "!kick nick1 - removes a presumably unresponsive user from an unstarted game"
+          User(m.user).send "!room (silent|vocal) - switches the channel from voice only users and back"
+          User(m.user).send "!whospies - tells you the loyalties of the players in the game"
+        else 
+          case page
+          when "2"
+            User(m.user).send "--- HELP PAGE 2/3 ---"
+            User(m.user).send "!info - shows spy count and team sizes for the game"
+            User(m.user).send "!who - returns a player list of who is playing, in team leader order"
+            User(m.user).send "!status - shows current status of the game, which phase of the round the game is in"
+            User(m.user).send "!missions - shows all previous mission results"
+            User(m.user).send "!mission1, !mission2, ... - shows a mission summary, including team voting history"
+          when "3"
+            User(m.user).send "--- HELP PAGE 3/3 ---"
+            User(m.user).send "!rules (avalon|avroles) - provides rules for the game; when provided with an argument, provides specified rules"
+            User(m.user).send "!subscribe - subscribe your current nick to receive PMs when someone calls !invite"
+            User(m.user).send "!unsubscribe - remove your nick from the invitation list"
+            User(m.user).send "!invite - invites #boardgames and subscribers to join the game"
+            User(m.user).send "!changelog (#) - shows changelog for the bot, when provided a number it showed details"
+          else
+            User(m.user).send "--- HELP PAGE 1/3 ---"
+            User(m.user).send "!join - joins the game"
+            User(m.user).send "!leave - leaves the game"
+            User(m.user).send "!start - starts the game"
+            User(m.user).send "!team user1 user2 user3 - proposes a team with the specified users on it"
+            User(m.user).send "!team confirm - puts the proposed team up for voting"
+            User(m.user).send "!vote yes|no - vote for teams to make or not, yes or no"
+            User(m.user).send "!mission pass|fail - vote for missions to pass or not, pass or fail"
+            User(m.user).send "!help (#) - when provided a number, pulls up specified page"
+          end
         end
       end
 
@@ -320,6 +330,32 @@ module Cinch
 
           # tell loyalty to new player
           self.tell_loyalty_to(player)
+        end
+      end
+
+      def room_mode(m, mode)
+        if self.is_mod? m.user.nick
+          case mode
+          when "silent"
+            Channel(@channel_name).moderated = true
+          when "vocal"
+            Channel(@channel_name).moderated = false
+          end
+        end
+      end
+
+      def who_spies(m)
+        if self.is_mod? m.user.nick
+          if @game.started?
+            if @game.has_player?(m.user)
+              User(m.user).send "You are in the game, goof!"
+            else  
+              spies = @game.spies.map{ |s| s.user.nick }
+              User(m.user).send "Okay! The spies are: #{spies.join(", ")}."  
+            end
+          else
+            User(m.user).send "There is no game going on."
+          end
         end
       end
 
@@ -717,7 +753,7 @@ module Cinch
             "Replace !teams with !missions; removed !team#",
             "Added a fail count to passing missions in !missions for 7+ M4 games",
             "Added Avalon notice and 7+ M4 reminder to game start",
-            "Added notice for hammer_warning",
+            "Added notice for hammer warning",
             "Bug fix: Bot will only accept unique users now for team",
             "Bot provides better error feedback for team making",
             "Commas are now allowed when making teams",
