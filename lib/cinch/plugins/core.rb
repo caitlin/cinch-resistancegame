@@ -275,15 +275,15 @@ class Game
   end
 
   def mission_results
-    self.rounds.map { |r| r.ended? ? r.mission_success? : nil }
+    self.rounds.map { |r| r.mission_success? }
   end
 
   def is_over?
-    self.resistance_win? || self.spies_win?
+    self.spies_win? || self.resistance_win?
   end
 
   def spies_win?
-    self.mission_results.count(false) == 3 || @current_round.too_many_fails?
+    @current_round.too_many_fails? || self.mission_results.count(false) == 3
   end
 
   def resistance_win?

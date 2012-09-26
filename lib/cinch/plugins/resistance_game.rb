@@ -12,7 +12,7 @@ module Cinch
       def initialize(*args)
         super
         @game = Game.new
-
+ 
         @mods          = config[:mods]
         @channel_name  = config[:channel]
         @settings_file = config[:settings]
@@ -56,7 +56,7 @@ module Cinch
       listen_to :join,          :method => :voice_if_in_game
       listen_to :part,          :method => :remove_if_not_started
       listen_to :quit,          :method => :remove_if_not_started
-      #listen_to :join,          :method => :devoice_everyone_on_start
+      listen_to :op,            :method => :devoice_everyone_on_start
 
       #--------------------------------------------------------------------------------
       # Listeners
@@ -77,8 +77,8 @@ module Cinch
         end
       end
 
-      def devoice_everyone_on_start(m)
-        if m.user == bot
+      def devoice_everyone_on_start(m, user)
+        if user == bot
           self.devoice_channel
         end
       end
@@ -436,7 +436,7 @@ module Cinch
 
               avalon_note = @game.avalon? ? " This is Resistance: Avalon, with #{@game.roles.map(&:capitalize).join(", ")}." : ""
 
-              Channel(@channel_name).send "The game has started. There are #{@game.spies.count} spies. #{self.get_game_info}#{avalon_note}"
+              Channel(@channel_name).send "The game has started. #{self.get_game_info}#{avalon_note}"
               if @game.player_count >= 7
                 Channel(@channel_name).send "This is a 7+ player game. Mission 4 will require TWO FAILS for the Spies."
               end
