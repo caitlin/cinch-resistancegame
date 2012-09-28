@@ -34,3 +34,7 @@ Here's an example of what your *bot.rb* might look like:
     end
 
     bot.start
+
+## Development
+
+https://www.pivotaltracker.com/projects/642861
