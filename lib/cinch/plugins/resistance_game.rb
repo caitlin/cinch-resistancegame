@@ -745,6 +745,12 @@ module Cinch
 
       CHANGELOG = [
         {
+          :date => "2012-10-01",
+          :changes => [
+            "Added hammer notification to team vote PM prompts"
+          ]
+        },
+        {
           :date => "2012-09-18",
           :changes => [
             "Bot removes user from game if they quit server and game hasn't started",
