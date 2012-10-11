@@ -74,11 +74,11 @@ module Cinch
         end
       end
 
-      def remove_if_not_started(m)
+      def remove_if_not_started(m, user)
         if @game.not_started?
-          left = @game.remove_player(m.user)
+          left = @game.remove_player(user)
           unless left.nil?
-            Channel(@channel_name).send "#{m.user.nick} has left the game (#{@game.players.count}/#{Game::MAX_PLAYERS})"
+            Channel(@channel_name).send "#{user.nick} has left the game (#{@game.players.count}/#{Game::MAX_PLAYERS})"
           end
         end
       end
