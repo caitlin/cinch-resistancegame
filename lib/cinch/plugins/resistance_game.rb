@@ -19,13 +19,16 @@ module Cinch
       end
 
 
-      match /join/i,         :method => :join
-      match /leave/i,        :method => :leave
-      match /start/i,        :method => :start_game
-      match "team confirm",  :method => :propose_team
-      match /team (.+)/i,    :method => :choose_team
-      match /vote (.+)/i,    :method => :team_vote
-      match /mission (.+)/i, :method => :mission_vote
+      match /join/i,             :method => :join
+      match /leave/i,            :method => :leave
+      match /start/i,            :method => :start_game
+      match /team confirm$/i,    :method => :confirm_team
+      match /confirm/i,          :method => :confirm_team
+      match /team (.+)/i,        :method => :propose_team
+      match /propose (.+)/i,     :method => :propose_team
+      match /vote (.+)/i,        :method => :team_vote
+      match /mission (.+)/i,     :method => :mission_vote
+      match /assassinate (.+)/i, :method => :assassinate_player
 
       # helpers
       match /invite/i,           :method => :invite
@@ -54,8 +57,7 @@ module Cinch
 
 
       listen_to :join,          :method => :voice_if_in_game
-      listen_to :part,          :method => :remove_if_not_started
-      listen_to :quit,          :method => :remove_if_not_started
+      listen_to :leaving,       :method => :remove_if_not_started
       listen_to :op,            :method => :devoice_everyone_on_start
 
       #--------------------------------------------------------------------------------
@@ -86,6 +88,7 @@ module Cinch
       #--------------------------------------------------------------------------------
       # Helpers
       #--------------------------------------------------------------------------------
+
       def help(m, page)
         if page == "mod" && self.is_mod?(m.user.nick)
           User(m.user).send "--- HELP PAGE MOD ---"
@@ -282,109 +285,6 @@ module Cinch
         User(m.user).send "You've been unsubscribed to the invitation list."
       end
 
-      #--------------------------------------------------------------------------------
-      # Mod commands
-      #--------------------------------------------------------------------------------
-
-      def is_mod?(nick)
-        # make sure that the nick is in the mod list and the user in authenticated        
-        @mods.include?(nick) && User(nick).authed?
-      end
-
-      def reset_game(m)
-        if self.is_mod? m.user.nick
-          @game = Game.new
-          self.devoice_channel
-          m.reply "The game has been reset."
-        end
-      end
-
-      def kick_user(m, nick)
-        if self.is_mod? m.user.nick
-          if @game.not_started?
-            user = User(nick)
-            left = @game.remove_player(user)
-            unless left.nil?
-              Channel(@channel_name).send "#{user.nick} has left the game (#{@game.players.count}/#{Game::MAX_PLAYERS})"
-              Channel(@channel_name).devoice(user)
-            end
-          else
-            User(m.user).send "You can't kick someone while a game is in progress."
-          end
-        end
-      end
-
-      def replace_user(m, nick1, nick2)
-        if self.is_mod? m.user.nick
-          # find irc users based on nick
-          user1 = User(nick1)
-          user2 = User(nick2)
-          
-          # replace the users for the players
-          player = @game.find_player(user1)
-          player.user = user2
-
-          # devoice/voice the players
-          Channel(@channel_name).devoice(user1)
-          Channel(@channel_name).voice(user2)
-
-          # tell loyalty to new player
-          self.tell_loyalty_to(player)
-        end
-      end
-
-      def room_mode(m, mode)
-        if self.is_mod? m.user.nick
-          case mode
-          when "silent"
-            Channel(@channel_name).moderated = true
-          when "vocal"
-            Channel(@channel_name).moderated = false
-          end
-        end
-      end
-
-      def who_spies(m)
-        if self.is_mod? m.user.nick
-          if @game.started?
-            if @game.has_player?(m.user)
-              User(m.user).send "You are in the game, goof!"
-            else  
-              spies = @game.spies.map{ |s| s.user.nick }
-              User(m.user).send "Okay! The spies are: #{spies.join(", ")}."  
-            end
-          else
-            User(m.user).send "There is no game going on."
-          end
-        end
-      end
-
-      #--------------------------------------------------------------------------------
-      # Game Settings
-      #--------------------------------------------------------------------------------
-
-      def game_settings(m)
-        if @game.type == :base
-          m.reply "Game settings: Base."
-        elsif @game.type == :avalon
-          m.reply "Game settings: Avalon. Using roles: #{@game.roles.map(&:capitalize).join(", ")}."
-        end
-      end
-
-      def set_game_settings(m, options)
-        options = options.split(" ")
-        game_type = options.shift
-        if game_type.downcase == "avalon"
-          valid_options = ["percival", "mordred", "oberon", "morgana"]
-          options.keep_if{ |opt| valid_options.include?(opt.downcase) }
-          roles = (["merlin", "assassin"] + options)
-          @game.change_type "avalon", roles.map(&:to_sym)
-          Channel(@channel_name).send "The game has been changed to Avalon. Using roles: #{roles.map(&:capitalize).join(", ")}."
-        else
-          @game.change_type "base"
-          Channel(@channel_name).send "The game has been changed to base."
-        end
-      end
 
       #--------------------------------------------------------------------------------
       # Main IRC Interface Methods
@@ -452,7 +352,7 @@ module Cinch
         end
       end
 
-      def choose_team(m, players)
+      def propose_team(m, players)
         if players != "confirm" 
           # make sure the providing user is team leader 
           if m.user == @game.team_leader.user
@@ -483,7 +383,7 @@ module Cinch
         end
       end
 
-      def propose_team(m)
+      def confirm_team(m)
         # make sure the providing user is team leader 
         if m.user == @game.team_leader.user
           if @game.team_selected? 
@@ -540,6 +440,27 @@ module Cinch
             end
           else
             User(player.user).send "You are not on this mission."
+          end
+        end
+      end
+
+      def assassinate_player(m, target)
+        if @game.is_over?
+          if @game.find_player_by_role(:assassin).user == m.user
+            killed = @game.find_player(target)
+            if killed.nil?
+              User(m.user).send "\"#{target}\" is an invalid target."
+            else
+              if killed.role?(:merlin)
+                Channel(@channel_name).send "The assassin kills #{killed.user.nick}. The spies have killed Merlin! Spies win the game!"
+              else 
+                Channel(@channel_name).send "The assassin kills #{killed.user.nick}. The spies have NOT killed Merlin. Resistance wins!"
+              end
+              self.start_new_game
+            end
+
+          else
+            User(m.user).send "You are not the assassin."
           end
         end
       end
@@ -611,7 +532,7 @@ module Cinch
         if @game.player_count >= 7
           team_sizes[3] = team_sizes.at(3).to_s + "*"
         end
-        "There are #{@game.spies.count} spies. Team sizes will be: #{team_sizes.join(", ")}"
+        "There are #{@game.player_count} players, with #{@game.spies.count} spies. Team sizes will be: #{team_sizes.join(", ")}"
       end
 
       def start_new_round
@@ -694,17 +615,30 @@ module Cinch
       end
 
       def do_end_game
+        spies = @game.spies.map{|s| s.user.nick}.join(", ")
         if @game.spies_win?
           Channel(@channel_name).send "Game is over! The spies have won!"
+          Channel(@channel_name).send "The spies were: #{spies}"
+          self.start_new_game
         else
-          Channel(@channel_name).send "Game is over! The resistance wins!"
+          if @game.avalon?
+            assassin = @game.find_player_by_role(:assassin)
+            Channel(@channel_name).send "The resistance successfully completed the missions, but the spies still have a chance."
+            Channel(@channel_name).send "The spies are: #{spies}. The assassin is: #{assassin.user.nick}. Choose a resistance member to assassinate."
+            User(assassin.user).send "You are the assassin, and it's time to assassinate one of the resistance. \"!assassinate name\""
+          else
+            Channel(@channel_name).send "Game is over! The resistance wins!"
+            Channel(@channel_name).send "The spies were: #{spies}"
+            self.start_new_game
+          end
         end
-        spies = @game.spies.map{|s| s.user.nick}.join(", ")
-        Channel(@channel_name).send "The spies were: #{spies}"
-        @game.save_game
+      end
+
+      def start_new_game
         @game.players.each do |p|
           Channel(@channel_name).devoice(p.user)
         end
+        @game.save_game
         @game = Game.new
       end
 
@@ -716,6 +650,113 @@ module Cinch
       def devoice_channel
         Channel(@channel_name).voiced.each do |user|
           Channel(@channel_name).devoice(user)
+        end
+      end
+
+      #--------------------------------------------------------------------------------
+      # Mod commands
+      #--------------------------------------------------------------------------------
+
+      def is_mod?(nick)
+        # make sure that the nick is in the mod list and the user in authenticated        
+        @mods.include?(nick) && User(nick).authed?
+      end
+
+      def reset_game(m)
+        if self.is_mod? m.user.nick
+          @game = Game.new
+          self.devoice_channel
+          Channel(@channel_name).send "The game has been reset."
+        end
+      end
+
+      def kick_user(m, nick)
+        if self.is_mod? m.user.nick
+          if @game.not_started?
+            user = User(nick)
+            left = @game.remove_player(user)
+            unless left.nil?
+              Channel(@channel_name).send "#{user.nick} has left the game (#{@game.players.count}/#{Game::MAX_PLAYERS})"
+              Channel(@channel_name).devoice(user)
+            end
+          else
+            User(m.user).send "You can't kick someone while a game is in progress."
+          end
+        end
+      end
+
+      def replace_user(m, nick1, nick2)
+        if self.is_mod? m.user.nick
+          # find irc users based on nick
+          user1 = User(nick1)
+          user2 = User(nick2)
+          
+          # replace the users for the players
+          player = @game.find_player(user1)
+          player.user = user2
+
+          # devoice/voice the players
+          Channel(@channel_name).devoice(user1)
+          Channel(@channel_name).voice(user2)
+
+          # inform channel
+          Channel(@channel_name).send "#{user1.nick} has been replaced with #{user2.nick}"
+
+          # tell loyalty to new player
+          self.tell_loyalty_to(player)
+        end
+      end
+
+      def room_mode(m, mode)
+        if self.is_mod? m.user.nick
+          case mode
+          when "silent"
+            Channel(@channel_name).moderated = true
+          when "vocal"
+            Channel(@channel_name).moderated = false
+          end
+        end
+      end
+
+      def who_spies(m)
+        if self.is_mod? m.user.nick
+          if @game.started?
+            if @game.has_player?(m.user)
+              User(m.user).send "You are in the game, goof!"
+            else  
+              spies = @game.spies.map{ |s| s.user.nick }
+              User(m.user).send "Okay! The spies are: #{spies.join(", ")}."  
+            end
+          else
+            User(m.user).send "There is no game going on."
+          end
+        end
+      end
+
+      #--------------------------------------------------------------------------------
+      # Game Settings
+      #--------------------------------------------------------------------------------
+
+      def game_settings(m)
+        if @game.type == :base
+          m.reply "Game settings: Base."
+        elsif @game.type == :avalon
+          m.reply "Game settings: Avalon. Using roles: #{@game.roles.map(&:capitalize).join(", ")}."
+        end
+      end
+
+      def set_game_settings(m, options)
+        options = options.split(" ")
+        game_type = options.shift
+        if game_type.downcase == "avalon"
+          valid_options = ["percival", "mordred", "oberon", "morgana"]
+          options.keep_if{ |opt| valid_options.include?(opt.downcase) }
+          roles = (["merlin", "assassin"] + options)
+          @game.change_type "avalon", roles.map(&:to_sym)
+          Channel(@channel_name).send "The game has been changed to Avalon. Using roles: #{roles.map(&:capitalize).join(", ")}."
+        else
+          @game.change_type "base"
+          Channel(@channel_name).send "The game has been changed to base."
         end
       end
 
@@ -745,7 +786,17 @@ module Cinch
 
       CHANGELOG = [
         {
-          :date => "2012-10-01",
+          :date => "2012-10-10",
+          :changes => [
+            "Added total player count to !info",
+            "\"!team confirm\" is case insensitive",
+            "Game reset messages send to channel",
+            "Replacing users tells channel",
+            "!assassinate for Avalon games"
+          ]
+        },
+        {
+          :date => "2012-10-02",
           :changes => [
             "Added hammer notification to team vote PM prompts"
           ]
@@ -858,10 +909,5 @@ module Cinch
 
     end
     
-
-
-
-    require File.expand_path(File.dirname(__FILE__)) + '/core'
-
   end
 end

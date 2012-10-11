@@ -535,7 +535,7 @@ class Player
   def resistance?
     [:resistance, :merlin, :percival].any?{ |role| role == self.loyalty }
   end
-
+  
   def role?(role)
     self.loyalty == role
   end
