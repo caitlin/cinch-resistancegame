@@ -750,17 +750,19 @@ module Cinch
       end
 
       def set_game_settings(m, options)
-        options = options.split(" ")
-        game_type = options.shift
-        if game_type.downcase == "avalon"
-          valid_options = ["percival", "mordred", "oberon", "morgana"]
-          options.keep_if{ |opt| valid_options.include?(opt.downcase) }
-          roles = (["merlin", "assassin"] + options)
-          @game.change_type "avalon", roles.map(&:to_sym)
-          Channel(@channel_name).send "The game has been changed to Avalon. Using roles: #{roles.map(&:capitalize).join(", ")}."
-        else
-          @game.change_type "base"
-          Channel(@channel_name).send "The game has been changed to base."
+        unless @game.started?
+          options = options.split(" ")
+          game_type = options.shift
+          if game_type.downcase == "avalon"
+            valid_options = ["percival", "mordred", "oberon", "morgana"]
+            options.keep_if{ |opt| valid_options.include?(opt.downcase) }
+            roles = (["merlin", "assassin"] + options)
+            @game.change_type "avalon", roles.map(&:to_sym)
+            Channel(@channel_name).send "The game has been changed to Avalon. Using roles: #{roles.map(&:capitalize).join(", ")}."
+          else
+            @game.change_type "base"
+            Channel(@channel_name).send "The game has been changed to base."
+          end
         end
       end
 
