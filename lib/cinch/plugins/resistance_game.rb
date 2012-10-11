@@ -6,6 +6,8 @@ require File.expand_path(File.dirname(__FILE__)) + '/core'
 module Cinch
   module Plugins
 
+    CHANGELOG_FILE = File.expand_path(File.dirname(__FILE__)) + "/changelog.yml"
+
     class ResistanceGame
       include Cinch::Plugin
 
@@ -13,6 +15,8 @@ module Cinch
         super
         @game = Game.new
  
+        @changelog     = self.load_changelog
+
         @mods          = config[:mods]
         @channel_name  = config[:channel]
         @settings_file = config[:settings]
@@ -228,15 +232,15 @@ module Cinch
       end
 
       def changelog_dir(m)
-        CHANGELOG.each_with_index do |changelog, i|
-          User(m.user).send "#{i+1} - #{changelog[:date]} - #{changelog[:changes].length} changes" 
+        @changelog.each_with_index do |changelog, i|
+          User(m.user).send "#{i+1} - #{changelog["date"]} - #{changelog["changes"].length} changes" 
         end
       end
 
       def changelog(m, page = 1)
-        changelog_page = CHANGELOG[page.to_i-1]
-        User(m.user).send "Changes for #{changelog_page[:date]}:"
-        changelog_page[:changes].each do |change|
+        changelog_page = @changelog[page.to_i-1]
+        User(m.user).send "Changes for #{changelog_page["date"]}:"
+        changelog_page["changes"].each do |change|
           User(m.user).send "- #{change}"
         end
       end
@@ -778,134 +782,14 @@ module Cinch
         settings
       end
 
+      def load_changelog
+        output = File.new(CHANGELOG_FILE, 'r')
+        changelog = YAML.load(output.read)
+        output.close
 
-      #--------------------------------------------------------------------------------
-      # Changelog
-      #--------------------------------------------------------------------------------
+        changelog
+      end
       
-
-      CHANGELOG = [
-        {
-          :date => "2012-10-10",
-          :changes => [
-            "Added total player count to !info",
-            "\"!team confirm\" is case insensitive",
-            "Game reset messages send to channel",
-            "Replacing users tells channel",
-            "!assassinate for Avalon games"
-          ]
-        },
-        {
-          :date => "2012-10-02",
-          :changes => [
-            "Added hammer notification to team vote PM prompts"
-          ]
-        },
-        {
-          :date => "2012-09-18",
-          :changes => [
-            "Bot removes user from game if they quit server and game hasn't started",
-            "Added Avalon rules \"!rules avalon\" (thanks timotab!)",
-            "Shuffled the YES/NO votes on team voting results",
-            "Changed !who to reply where asked",
-            "Replace !teams with !missions; removed !team#",
-            "Added a fail count to passing missions in !missions for 7+ M4 games",
-            "Added Avalon notice and 7+ M4 reminder to game start",
-            "Added notice for hammer warning",
-            "Bug fix: Bot will only accept unique users now for team",
-            "Bot provides better error feedback for team making",
-            "Commas are now allowed when making teams",
-            "Added * on team sizes for M4 in 7+ games"
-          ]
-        },
-        {
-          :date => "2012-09-17",
-          :changes => [
-            "Added ability to see team votes for past missions - !mission#", 
-            "!team# will report current team as AWAY ON MISSION",
-            "Bot removes user from game if they leave channel and game hasn't started",
-            "!settings changes will announce to channel",
-            "!settings without arguments shows current settings",
-            "replaced !team_sizes with a more detailed !info",
-            "updated help pages"
-          ]
-        },
-        {
-          :date => "2012-09-16",
-          :changes => [
-            "Updated the rules, with timotab's better rules",
-            "Bot devoices everyone on reset",
-            "When a player joins the channel, voice them if they are in the game",
-            "Show fail count in !team# - \"FAILED (1)\" or \"FAILED (2)\"",
-            "Added the ability to replace a user with another user while in game",
-            "Bug fix: A user can no longer subscribe twice",
-            "Bug fix: A user can no longer join if not in channel"
-          ]
-        },
-        {
-          :date => "2012-09-12",
-          :changes => [
-            "restricted !invite to once per game",
-            "added a !subscribe that allows you to get invite PMs",
-            "added a !unsubscribe to remove from subscribe list"
-          ]
-        },
-        {
-          :date => "2012-09-10",
-          :changes => [
-            "added voice/devoice to join/leave",
-            "added !team_sizes",
-            "updated !status to better messages",
-            "added !team command examples to team leader PM prompt",
-            "added proposed team in vote PM prompt",
-            "added !teams - calls team1, team2, up to current round",
-            "ordered team voting by yes and nos"
-          ]
-        },
-        {
-          :date => "2012-09-06",
-          :changes => [
-            "added Avalon roles"
-          ]
-        },
-        {
-          :date => "2012-09-05",
-          :changes => [
-            "added !status to see what phase of round currently in",
-            "!status also tells who hasn't yet submitted votes",
-            "five consecutive vote fails will win the game for spies",
-            "added the requirement for two fails in round 4 for 7+ games",
-            "team requires exact number, resets every time you call the command",
-            "'!team confirm' to actually submit the team for votes",
-          ]
-        },
-        {
-          :date => "2012-08-01",
-          :changes => [
-            "added changelog",
-            "changed !who to direct to PM; also tells you if no one has joined the game yet",
-            "added team leader and pass/fail status to !team# command",
-            "user cannot !start if they are not in the game",
-            "always show fails at end of mission vote reveal",
-            "!invite will invite #boardgames to join the game"
-          ]
-        },
-        { :date => "2012-07-31",
-          :changes => [
-            "added PM prompt for time to vote",
-            "added PM prompt for time to make team",
-            "added !team1, !team2, ...",
-            "added !who; after game starts will list team leader order",
-            "added !intro, !help, !rules",
-            "added !leave ability",
-            "users can't !join in the middle of existing game",
-            "when game starts, it says how many spies, and team sizes for each round",
-            "improved team creating so !team can't add too many to a team (works for now)",
-            "can't vote teams/missions during the wrong phase",
-            "changed commands to all cases: !Mission, !mission, !MISSION"
-          ]
-        }
-      ]
 
     end
     
