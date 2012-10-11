@@ -639,6 +639,7 @@ module Cinch
       end
 
       def start_new_game
+        Channel(@channel_name).moderated = false
         @game.players.each do |p|
           Channel(@channel_name).devoice(p.user)
         end
