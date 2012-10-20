@@ -94,7 +94,7 @@ module Cinch
       #--------------------------------------------------------------------------------
 
       def help(m, page)
-        if page.downcase == "mod" && self.is_mod?(m.user.nick)
+        if page.to_s.downcase == "mod" && self.is_mod?(m.user.nick)
           User(m.user).send "--- HELP PAGE MOD ---"
           User(m.user).send "!reset - completely resets the game to brand new"
           User(m.user).send "!replace nick1 nick1 - replaces a player in-game with a player out-of-game"
@@ -138,7 +138,7 @@ module Cinch
       end
 
       def rules(m, section)
-        case section.downcase
+        case section.to_s.downcase
         when "avalon"
           User(m.user).send "The Resistance: Avalon is the same basic game as The Resistance, with slightly different terms to fit the theme. However, there are some special roles that some players may have.  By and large, the game is played the same way. However, the special characters change the amount of information that players start the game with."
           User(m.user).send "All Avalon games include Merlin and The Assassin. Other roles are optional (but have some dependencies)"
