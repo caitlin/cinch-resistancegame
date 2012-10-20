@@ -314,7 +314,6 @@ module Cinch
         else
           User(m.user).send "You need to be in #{@channel_name} to join the game."
         end
-        @game.save_game
       end
 
       def leave(m)
