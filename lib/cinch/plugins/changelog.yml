@@ -1,3 +1,8 @@
+- date: "2012-10-20"
+  changes:
+    - Bot now times games in the logs
+    - "Fixed game logging"
+    - "Bug fix: Can do !rules Avalon now"
 - date: "2012-10-10"
   changes:
     - "Added total player count to !info"

@@ -1,3 +1,5 @@
+require 'json'
+
 #================================================================================
 # GAME
 #================================================================================
@@ -27,7 +29,7 @@ class Game
       10 => { 1 => 3, 2 => 4, 3 => 4, 4 => 5, 5 => 5}
     }
 
-  attr_accessor :started, :players, :rounds, :type, :roles, :invitation_sent
+  attr_accessor :started, :players, :rounds, :type, :roles, :invitation_sent, :time_start, :time_end
   
   def initialize
     self.started         = false
@@ -36,6 +38,8 @@ class Game
     self.type            = :base
     self.roles           = {}
     self.invitation_sent = false
+    self.time_start      = nil
+    self.time_end        = nil
   end
 
   #----------------------------------------------
@@ -119,6 +123,7 @@ class Game
 
   def start_game!
     self.started = true
+    self.time_start = Time.now
     self.assign_loyalties
     @current_round = Round.new(1)
     self.rounds << @current_round
@@ -128,9 +133,10 @@ class Game
   end
 
   def save_game
-    output = File.new("#{GAMES_DIR}/#{Time.now.to_s}", 'w')
-    output.puts YAML.dump(self.players)
-    output.puts YAML.dump(self.rounds)
+    self.time_end = Time.now
+    output = File.new("#{GAMES_DIR}/#{self.time_end.to_s}", 'w')
+
+    output.puts JSON.dump(self)
     output.close
   end
 
@@ -337,6 +343,10 @@ class Game
     #(!(round.nil?) && round.ended? ) ? round : nil
   end
 
+  def game_length
+    (self.time_end.nil? || self.time_start.nil?) ? 0 : (self.time_end - self.time_start)
+  end
+
   #----------------------------------------------
   # Find by role
   #----------------------------------------------
@@ -355,6 +365,23 @@ class Game
 
   def go_on_mission
     @current_round.go_on_mission    
+  end
+
+  #----------------------------------------------
+  # Other
+  #----------------------------------------------
+  
+
+  def to_json(*a)
+    {
+      'json_class'   => self.class.name,
+      'data'         => {
+        'type'         => self.type,
+        'game_length'  => self.game_length,
+        'players'      => self.players,
+        'rounds'       => self.rounds
+      }
+    }.to_json(*a)
   end
 
 
@@ -460,7 +487,16 @@ class Round
     self.state = :end
   end
 
-
+  def to_json(*a)
+    {
+      'json_class'   => self.class.name,
+      'data'         => {
+        'number'        => self.number,
+        'teams'         => self.teams,
+        'mission_votes' => self.mission_vote
+      }
+    }.to_json(*a)
+  end
 
 end
 
@@ -508,6 +544,17 @@ class Team
     votes.count('yes') > votes.count('no')
   end
 
+  def to_json(*a)
+    {
+      'json_class'   => self.class.name,
+      'data'         => {
+        'team_leader'  => self.team_leader,
+        'players'      => self.players,
+        'team_votes'   => self.team_votes
+      }
+    }.to_json(*a)
+  end
+
 end
 
 
@@ -538,6 +585,16 @@ class Player
   
   def role?(role)
     self.loyalty == role
+  end
+
+  def to_json(*a)
+    {
+      'json_class'   => self.class.name,
+      'data'         => {
+        'user'         => self.user.nick,
+        'loyalty'      => self.loyalty
+      }
+    }.to_json(*a)
   end
 
 end
