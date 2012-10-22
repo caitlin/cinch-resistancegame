@@ -44,6 +44,7 @@ module Cinch
       match /score/i,            :method => :score
       match /info/i,             :method => :game_info
       match /status/i,           :method => :status
+      match /whoami/i,           :method => :whoami
       match /help ?(.+)?/i,      :method => :help
       match /intro/i,            :method => :intro
       match /rules ?(.+)?/i,     :method => :rules
@@ -110,6 +111,7 @@ module Cinch
             User(m.user).send "!status - shows current status of the game, which phase of the round the game is in"
             User(m.user).send "!missions - shows all previous mission results"
             User(m.user).send "!mission1, !mission2, ... - shows a mission summary, including team voting history"
+            User(m.user).send "!whoami - returns your current loyalty role."
           when "3"
             User(m.user).send "--- HELP PAGE 3/3 ---"
             User(m.user).send "!rules (avalon|avroles) - provides rules for the game; when provided with an argument, provides specified rules"
@@ -487,6 +489,13 @@ module Cinch
         end
       end
 
+      def whoami(m)
+        if @game.started?
+          player = @game.find_player(m.user)
+          reply = self.tell_loyalty_to(player)
+        end
+      end
+      
       def tell_loyalty_to(player)
         if @game.avalon?
           spies = @game.spies
