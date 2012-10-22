@@ -493,7 +493,7 @@ class Round
       'data'         => {
         'number'        => self.number,
         'teams'         => self.teams,
-        'mission_votes' => self.mission_vote
+        'mission_votes' => self.mission_votes
       }
     }.to_json(*a)
   end

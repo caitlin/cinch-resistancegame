@@ -57,7 +57,7 @@ module Cinch
       match /replace (.+?) (.+)/i, :method => :replace_user
       match /kick (.+)/i,          :method => :kick_user
       match /room (.+)/i,          :method => :room_mode
-      match /whospies/i,           :method => :who_spies
+      match /roles/i,           :method => :who_spies
 
 
       listen_to :join,          :method => :voice_if_in_game
@@ -100,7 +100,7 @@ module Cinch
           User(m.user).send "!replace nick1 nick1 - replaces a player in-game with a player out-of-game"
           User(m.user).send "!kick nick1 - removes a presumably unresponsive user from an unstarted game"
           User(m.user).send "!room (silent|vocal) - switches the channel from voice only users and back"
-          User(m.user).send "!whospies - tells you the loyalties of the players in the game"
+          User(m.user).send "!roles - tells you the loyalties of the players in the game"
         else 
           case page
           when "2"
@@ -455,11 +455,13 @@ module Cinch
             if killed.nil?
               User(m.user).send "\"#{target}\" is an invalid target."
             else
+              spies, resistance = get_loyalty_info
               if killed.role?(:merlin)
                 Channel(@channel_name).send "The assassin kills #{killed.user.nick}. The spies have killed Merlin! Spies win the game!"
               else 
                 Channel(@channel_name).send "The assassin kills #{killed.user.nick}. The spies have NOT killed Merlin. Resistance wins!"
               end
+              Channel(@channel_name).send "The resistance were: #{resistance.join(", ")}."
               self.start_new_game
             end
 
@@ -537,6 +539,21 @@ module Cinch
           team_sizes[3] = team_sizes.at(3).to_s + "*"
         end
         "There are #{@game.player_count} players, with #{@game.spies.count} spies. Team sizes will be: #{team_sizes.join(", ")}"
+      end
+
+      def get_loyalty_info
+        if @game.type == :avalon
+          spies = @game.spies.sort_by{|s| s.loyalty}.map do |s|
+            "#{s.user.nick}" + (s.loyalty != :spy ? " (#{s.loyalty.capitalize})" : "" )
+          end
+          resistance = @game.resistance.sort_by{|r| r.loyalty}.map do |r|
+            "#{r.user.nick}" + (r.loyalty != :resistance ? " (#{r.loyalty.capitalize})" : "" )
+          end          
+        else
+          spies = @game.spies.map{ |s| s.user.nick }
+          resistance = @game.resistance.map{ |r| r.user.nick }
+        end
+        return spies, resistance
       end
 
       def start_new_round
@@ -619,20 +636,22 @@ module Cinch
       end
 
       def do_end_game
-        spies = @game.spies.map{|s| s.user.nick}.join(", ")
+        spies, resistance = get_loyalty_info
         if @game.spies_win?
           Channel(@channel_name).send "Game is over! The spies have won!"
-          Channel(@channel_name).send "The spies were: #{spies}"
+          Channel(@channel_name).send "The spies were: #{spies.join(", ")}"
+          Channel(@channel_name).send "The resistance were: #{resistance.join(", ")}"
           self.start_new_game
         else
           if @game.avalon?
             assassin = @game.find_player_by_role(:assassin)
             Channel(@channel_name).send "The resistance successfully completed the missions, but the spies still have a chance."
-            Channel(@channel_name).send "The spies are: #{spies}. The assassin is: #{assassin.user.nick}. Choose a resistance member to assassinate."
+            Channel(@channel_name).send "The spies are: #{spies.join(", ")}. Assassin, choose a resistance member to assassinate."
             User(assassin.user).send "You are the assassin, and it's time to assassinate one of the resistance. \"!assassinate name\""
           else
             Channel(@channel_name).send "Game is over! The resistance wins!"
-            Channel(@channel_name).send "The spies were: #{spies}"
+            Channel(@channel_name).send "The spies were: #{spies.join(", ")}"
+            Channel(@channel_name).send "The resistance were: #{resistance.join(", ")}"
             self.start_new_game
           end
         end
@@ -728,9 +747,15 @@ module Cinch
           if @game.started?
             if @game.has_player?(m.user)
               User(m.user).send "You are in the game, goof!"
-            else  
-              spies = @game.spies.map{ |s| s.user.nick }
-              User(m.user).send "Okay! The spies are: #{spies.join(", ")}."  
+            else
+              spies, resistance = get_loyalty_info  
+              if @game.type == :avalon
+                User(m.user).send "Avalon Roles:"
+                User(m.user).send "Spies are #{spies.join(", ")}."
+                User(m.user).send "Resistance are #{resistance.join(", ")}."
+              else
+                User(m.user).send "Okay! The spies are: #{spies.join(", ")}."
+              end
             end
           else
             User(m.user).send "There is no game going on."

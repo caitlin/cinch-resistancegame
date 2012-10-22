@@ -1,6 +1,9 @@
+- date: "2012-10-22"
+  changes:
+    - "Avalon roles are revealed at game end"
 - date: "2012-10-20"
   changes:
-    - Bot now times games in the logs
+    - "Bot now times games in the logs"
     - "Fixed game logging"
     - "Bug fix: Can do !rules Avalon now"
 - date: "2012-10-10"
