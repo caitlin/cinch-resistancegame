@@ -252,6 +252,7 @@ module Cinch
           else
             @game.mark_invitation_sent
             User("BG3PO").send "!invite_to_resistance_game"
+            User(m.user).send "Invitation has been sent."
 
             settings = load_settings || {}
             subscribers = settings["subscribers"]
