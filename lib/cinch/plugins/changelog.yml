@@ -3,6 +3,7 @@
     - "Avalon roles are revealed at game end"
     - "Invite confirmation to user"
     - "!whoami will return your allegiance"
+    - "Added separator between games"
 - date: "2012-10-20"
   changes:
     - "Bot now times games in the logs"

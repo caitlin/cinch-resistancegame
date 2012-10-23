@@ -497,6 +497,7 @@ module Cinch
       end
       
       def tell_loyalty_to(player)
+        User(player.user).send "========================================"
         if @game.avalon?
           spies = @game.spies
 
