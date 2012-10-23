@@ -8,7 +8,7 @@ $player_count = 0
 
 class Game
 
-  GAMES_DIR = "games/"
+  GAMES_DIR = "/usr/local/resistancebot/games/"
 
   MIN_PLAYERS = 5
   MAX_PLAYERS = 10
