@@ -488,6 +488,7 @@ module Cinch
       
       def pass_out_loyalties
         @game.players.each do |p|
+          User(p.user).send "="*40
           reply = self.tell_loyalty_to(p)
         end
       end
@@ -500,7 +501,6 @@ module Cinch
       end
       
       def tell_loyalty_to(player)
-        User(player.user).send "========================================"
         if @game.avalon?
           spies = @game.spies
 
@@ -741,6 +741,7 @@ module Cinch
           Channel(@channel_name).send "#{user1.nick} has been replaced with #{user2.nick}"
 
           # tell loyalty to new player
+          User(player.user).send "="*40
           self.tell_loyalty_to(player)
         end
       end
