@@ -261,7 +261,10 @@ module Cinch
             current_players = @game.players.map{ |p| p.user.nick }
             subscribers.each do |subscriber|
               unless current_players.include? subscriber
-                User(subscriber).send "A game of Resistance is gathering in #playresistance ..."
+                User(subscriber).refresh
+                if User(subscriber).online?
+                  User(subscriber).send "A game of Resistance is gathering in #playresistance ..."
+                end
               end
             end
           end
