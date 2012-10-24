@@ -702,6 +702,11 @@ module Cinch
 
       def reset_game(m)
         if self.is_mod? m.user.nick
+          if @game.started?
+            spies, resistance = get_loyalty_info
+            Channel(@channel_name).send "The spies were: #{spies.join(", ")}"
+            Channel(@channel_name).send "The resistance were: #{resistance.join(", ")}"
+          end
           @game = Game.new
           self.devoice_channel
           Channel(@channel_name).send "The game has been reset."
