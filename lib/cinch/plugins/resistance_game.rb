@@ -47,7 +47,6 @@ module Cinch
       match /who$/i,             :method => :list_players
       match /missions/i,         :method => :missions_overview
       match /mission(\d)/i,      :method => :mission_summary
-      match /score/i,            :method => :score
       match /info/i,             :method => :game_info
       match /status/i,           :method => :status
       match /whoami/i,           :method => :whoami
@@ -235,10 +234,6 @@ module Cinch
             m.reply "RESULT: #{prev_round.mission_success? ? "PASSED" : "FAILED (#{prev_round.mission_fails})"}"
           end
         end
-      end
-
-      def score(m)
-        m.reply self.game_score
       end
 
       def game_info(m)
