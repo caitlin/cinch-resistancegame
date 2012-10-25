@@ -722,6 +722,7 @@ module Cinch
           left = @game.remove_player(user)
           unless left.nil?
             Channel(@channel_name).send "#{user.nick} has left the game (#{@game.players.count}/#{Game::MAX_PLAYERS})"
+            Channel(@channel_name).devoice(user)
           end
         end
       end
