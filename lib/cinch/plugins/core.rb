@@ -8,7 +8,6 @@ $player_count = 0
 
 class Game
 
-  GAMES_DIR = "/usr/local/resistancebot/games/"
 
   MIN_PLAYERS = 5
   MAX_PLAYERS = 10
@@ -113,6 +112,10 @@ class Game
     self.invitation_sent = true
   end
 
+  def reset_invitation
+    self.invitation_sent = false
+  end
+
   def invitation_sent?
     self.invitation_sent == true
   end
@@ -132,9 +135,9 @@ class Game
     $player_count = self.player_count
   end
 
-  def save_game
+  def save_game(directory)
     self.time_end = Time.now
-    output = File.new("#{GAMES_DIR}/#{self.time_end.to_s}", 'w')
+    output = File.new("#{directory}#{self.time_end.to_s}", 'w')
 
     output.puts JSON.dump(self)
     output.close

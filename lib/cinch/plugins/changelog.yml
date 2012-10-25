@@ -1,3 +1,7 @@
+- date: "2012-10-25"
+  changes:
+    - "Kick idle players after certain amount of time"
+    - "Reallow !invite after certain amount of time"
 - date: "2012-10-22"
   changes:
     - "Avalon roles are revealed at game end"
@@ -84,7 +88,6 @@
     - "user cannot !start if they are not in the game"
     - "always show fails at end of mission vote reveal"
     - "!invite will invite #boardgames to join the game"
-
 - date: "2012-07-31"
   changes:
     - "added PM prompt for time to vote"

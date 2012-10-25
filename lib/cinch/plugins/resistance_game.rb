@@ -20,6 +20,12 @@ module Cinch
         @mods          = config[:mods]
         @channel_name  = config[:channel]
         @settings_file = config[:settings]
+        @games_dir     = config[:games_dir]
+
+        @idle_timer_length    = config[:allowed_idle]
+        @invite_timer_length  = config[:invite_reset]
+
+        @idle_timer   = self.start_idle_timer
       end
 
 
@@ -58,15 +64,16 @@ module Cinch
       match /replace (.+?) (.+)/i, :method => :replace_user
       match /kick (.+)/i,          :method => :kick_user
       match /room (.+)/i,          :method => :room_mode
-      match /roles/i,           :method => :who_spies
+      match /roles/i,              :method => :who_spies
 
 
       listen_to :join,          :method => :voice_if_in_game
       listen_to :leaving,       :method => :remove_if_not_started
       listen_to :op,            :method => :devoice_everyone_on_start
 
+
       #--------------------------------------------------------------------------------
-      # Listeners
+      # Listeners & Timers
       #--------------------------------------------------------------------------------
       
       def voice_if_in_game(m)
@@ -77,16 +84,27 @@ module Cinch
 
       def remove_if_not_started(m, user)
         if @game.not_started?
-          left = @game.remove_player(user)
-          unless left.nil?
-            Channel(@channel_name).send "#{user.nick} has left the game (#{@game.players.count}/#{Game::MAX_PLAYERS})"
-          end
+          self.remove_user_from_game(user)
         end
       end
 
       def devoice_everyone_on_start(m, user)
         if user == bot
           self.devoice_channel
+        end
+      end
+
+      def start_idle_timer
+        Timer(300) do
+          puts "checking..."
+          @game.players.map{|p| p.user }.each do |user|
+            puts " => #{user.nick}"
+            user.refresh
+            if user.idle > @idle_timer_length
+              self.remove_user_from_game(user)
+              user.send "You have been removed from the #{@channel_name} game due to inactivity."
+            end
+          end
         end
       end
 
@@ -234,7 +252,7 @@ module Cinch
       end
 
       def changelog_dir(m)
-        @changelog.each_with_index do |changelog, i|
+        @changelog.first(5).each_with_index do |changelog, i|
           User(m.user).send "#{i+1} - #{changelog["date"]} - #{changelog["changes"].length} changes" 
         end
       end
@@ -247,11 +265,11 @@ module Cinch
         end
       end
 
-      def invite(m)    
+      def invite(m)
         if @game.accepting_players?
           if @game.invitation_sent?
-            m.reply "An invitation has already been sent once for this game."
-          else
+            m.reply "An invitation cannot be sent out again so soon."
+          else      
             @game.mark_invitation_sent
             User("BG3PO").send "!invite_to_resistance_game"
             User(m.user).send "Invitation has been sent."
@@ -266,6 +284,11 @@ module Cinch
                   User(subscriber).send "A game of Resistance is gathering in #playresistance ..."
                 end
               end
+            end
+
+            # allow for reset after provided time
+            Timer(@invite_timer_length, shots: 1) do
+              @game.reset_invitation
             end
           end
         end
@@ -301,6 +324,7 @@ module Cinch
       #--------------------------------------------------------------------------------
 
       def join(m)
+        # self.reset_timer(m)
         if Channel(@channel_name).has_user?(m.user)
           if @game.accepting_players? 
             added = @game.add_player(m.user)
@@ -340,6 +364,7 @@ module Cinch
         unless @game.started?
           if @game.at_min_players?
             if @game.has_player?(m.user)
+              @idle_timer.stop
               @game.start_game!
 
               self.pass_out_loyalties
@@ -676,8 +701,9 @@ module Cinch
         @game.players.each do |p|
           Channel(@channel_name).devoice(p.user)
         end
-        @game.save_game
+        @game.save_game(@games_dir)
         @game = Game.new
+        @idle_timer.start
       end
 
 
@@ -691,13 +717,27 @@ module Cinch
         end
       end
 
+      def remove_user_from_game(user)
+        if @game.not_started?
+          left = @game.remove_player(user)
+          unless left.nil?
+            Channel(@channel_name).send "#{user.nick} has left the game (#{@game.players.count}/#{Game::MAX_PLAYERS})"
+          end
+        end
+      end
+
+      def dehighlight_nick(nickname)
+        nickname.chars.to_a * 8203.chr('UTF-8')
+      end
+
       #--------------------------------------------------------------------------------
       # Mod commands
       #--------------------------------------------------------------------------------
 
       def is_mod?(nick)
-        # make sure that the nick is in the mod list and the user in authenticated        
-        @mods.include?(nick) && User(nick).authed?
+        # make sure that the nick is in the mod list and the user in authenticated 
+        user = User(nick) 
+        user.authed? && @mods.include?(user.authname)
       end
 
       def reset_game(m)
@@ -710,6 +750,7 @@ module Cinch
           @game = Game.new
           self.devoice_channel
           Channel(@channel_name).send "The game has been reset."
+          @idle_timer.start
         end
       end
 
