@@ -1,3 +1,6 @@
+- date: "2012-10-31"
+  changes:
+    - "Sub/unsub require user to be registered and identified"
 - date: "2012-10-25"
   changes:
     - "Kick idle players after certain amount of time"
