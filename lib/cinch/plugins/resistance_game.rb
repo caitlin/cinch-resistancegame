@@ -295,22 +295,34 @@ module Cinch
         if subscribers.include?(m.user.nick)
           User(m.user).send "You are already subscribed to the invitation list."
         else
-          subscribers << m.user.nick 
-          settings["subscribers"] = subscribers
-          save_settings(settings)
-          User(m.user).send "You've been subscribed to the invitation list."
+          if User(m.user).authed?
+            subscribers << m.user.nick 
+            settings["subscribers"] = subscribers
+            save_settings(settings)
+            User(m.user).send "You've been subscribed to the invitation list."
+          else
+            User(m.user).send "Whoops. You need to be identified on freenode to be able to subscribe. Either identify (\"/msg Nickserv identify [password]\") if you are registered, or register your account (\"/msg Nickserv register [email] [password]\")"
+            User(m.user).send "See http://freenode.net/faq.shtml#registering for help"
+          end
         end
       end
 
       def unsubscribe(m)
         settings = load_settings || {}
         subscribers = settings["subscribers"] || []
-
-        subscribers.delete_if{ |sub| sub == m.user.nick }
-
-        settings["subscribers"] = subscribers
-        save_settings(settings)
-        User(m.user).send "You've been unsubscribed to the invitation list."
+        if subscribers.include?(m.user.nick)
+          if User(m.user).authed?
+            subscribers.delete_if{ |sub| sub == m.user.nick }
+            settings["subscribers"] = subscribers
+            save_settings(settings)
+            User(m.user).send "You've been unsubscribed to the invitation list."
+          else
+            User(m.user).send "Whoops. You need to be identified on freenode to be able to unsubscribe. Either identify (\"/msg Nickserv identify [password]\") if you are registered, or register your account (\"/msg Nickserv register [email] [password]\")"
+            User(m.user).send "See http://freenode.net/faq.shtml#registering for help"
+          end
+        else
+          User(m.user).send "You are not subscribed to the invitation list."
+        end
       end
 
 
