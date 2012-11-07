@@ -1,4 +1,5 @@
 - date: "2012-10-07"
+  changes:
     - "Prevent highlight on informational command output"
 - date: "2012-10-31"
   changes:
