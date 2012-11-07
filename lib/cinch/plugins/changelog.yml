@@ -1,6 +1,7 @@
 - date: "2012-10-07"
   changes:
     - "Prevent highlight on informational command output"
+    - "!missionN states when no teams have been upvoted for current mission"
 - date: "2012-10-31"
   changes:
     - "Sub/unsub require user to be registered and identified"
