@@ -1,3 +1,5 @@
+- date: "2012-10-07"
+    - "Prevent highlight on informational command output"
 - date: "2012-10-31"
   changes:
     - "Sub/unsub require user to be registered and identified"

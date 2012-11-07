@@ -183,7 +183,7 @@ module Cinch
         if @game.players.empty?
           m.reply "No one has joined the game yet."
         else
-          m.reply @game.players.map{ |p| p == @game.hammer ? "#{p.user.nick}*" : p.user.nick }.join(' ')
+          m.reply @game.players.map{ |p| p == @game.hammer ? "#{dehighlight_nick(p.user.nick)}*" : dehighlight_nick(p.user.nick) }.join(' ')
         end
       end
 
@@ -208,7 +208,7 @@ module Cinch
             else
               mission_result = "AWAY ON MISSION"
             end
-            m.reply "MISSION #{number} - Leader: #{prev_round.team_leader.user.nick} - Team: #{team.players.map{ |p| p.user.nick }.join(', ')} - #{mission_result}"
+            m.reply "MISSION #{number} - Leader: #{dehighlight_nick(prev_round.team_leader.user.nick)} - Team: #{team.players.map{ |p| dehighlight_nick(p.user.nick) }.join(', ')} - #{mission_result}"
           else
             #m.reply "A team hasn't been made for that round yet."
           end
@@ -227,7 +227,7 @@ module Cinch
           teams.each_with_index do |team, i|
             went_team = team.team_makes? ? " - MISSION" : ""
             if team.team_votes.length == @game.players.length # this should probably be a method somewhere?
-              m.reply "Team #{i+1} - Leader: #{team.team_leader.user.nick} - Team: #{team.players.map{ |p| p.user.nick }.join(', ')} - Votes: #{self.format_votes(team.team_votes)}#{went_team}"
+              m.reply "Team #{i+1} - Leader: #{dehighlight_nick(team.team_leader.user.nick)} - Team: #{team.players.map{ |p| dehighlight_nick(p.user.nick) }.join(', ')} - Votes: #{self.format_votes(team.team_votes, true)}#{went_team}"
             end
           end
           if prev_round.ended?
@@ -612,7 +612,7 @@ module Cinch
       def process_team_votes
         # reveal the votes
         Channel(@channel_name).send "The votes are in for the team: #{@game.current_round.team.players.map(&:user).join(', ')}"
-        Channel(@channel_name).send self.format_votes(@game.current_round.team.team_votes)
+        Channel(@channel_name).send self.format_votes(@game.current_round.team.team_votes, false)
 
         # determine if team makes
         if @game.current_round.team_makes?
@@ -641,9 +641,9 @@ module Cinch
         end
       end
 
-      def format_votes(team_votes)
-        yes_votes = team_votes.select{ |p, v| v == 'yes' }.map {|p, v| p.user.nick }.shuffle
-        no_votes  = team_votes.select{ |p, v| v == 'no'  }.map {|p, v| p.user.nick }.shuffle
+      def format_votes(team_votes, dehighlight)
+        yes_votes = team_votes.select{ |p, v| v == 'yes' }.map {|p, v| (dehighlight) ? dehighlight_nick(p.user.nick) : p.user.nick}.shuffle
+        no_votes  = team_votes.select{ |p, v| v == 'no'  }.map {|p, v| (dehighlight) ? dehighlight_nick(p.user.nick) : p.user.nick}.shuffle
         if no_votes.empty?
           votes = "YES - #{yes_votes.join(", ")}"
         elsif yes_votes.empty?
@@ -735,7 +735,7 @@ module Cinch
       end
 
       def dehighlight_nick(nickname)
-        nickname.chars.to_a * 8203.chr('UTF-8')
+        nickname.scan(/.{2}|.+/).join(8203.chr('UTF-8'))
       end
 
       #--------------------------------------------------------------------------------
