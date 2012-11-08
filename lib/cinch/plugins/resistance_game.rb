@@ -228,7 +228,7 @@ module Cinch
             went_team = team.team_makes? ? " - MISSION" : ""
             if team.team_votes.length == @game.players.length # this should probably be a method somewhere?
               m.reply "Team #{i+1} - Leader: #{dehighlight_nick(team.team_leader.user.nick)} - Team: #{team.players.map{ |p| dehighlight_nick(p.user.nick) }.join(', ')} - Votes: #{self.format_votes(team.team_votes, true)}#{went_team}"
-            else
+            elsif i == 0
               m.reply "No teams have been voted on yet."
             end
           end
