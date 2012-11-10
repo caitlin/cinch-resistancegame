@@ -28,14 +28,15 @@ class Game
       10 => { 1 => 3, 2 => 4, 3 => 4, 4 => 5, 5 => 5}
     }
 
-  attr_accessor :started, :players, :rounds, :type, :roles, :invitation_sent, :time_start, :time_end
+  attr_accessor :started, :players, :rounds, :type, :roles, :variants, :invitation_sent, :time_start, :time_end
   
   def initialize
     self.started         = false
     self.players         = []
     self.rounds          = []
     self.type            = :base
-    self.roles           = {}
+    self.roles           = []
+    self.variants        = []
     self.invitation_sent = false
     self.time_start      = nil
     self.time_end        = nil
@@ -95,17 +96,23 @@ class Game
     removed
   end
 
-  def change_type(type, roles = {})
-    self.type = type.to_sym
-    if type == "avalon" 
-      self.roles = roles
+  def change_type(type, options = {})
+    self.type = type
+    if type == :avalon
+      self.roles   = options[:roles].map(&:to_sym)
+      self.variants = []
     else
-      self.roles = {}
+      self.roles    = []
+      self.variants = options[:variants].map(&:to_sym)
     end
   end
 
   def avalon?
     self.type == :avalon
+  end
+
+  def with_variant?(variant)
+    self.variants.include?(variant)
   end
 
   def mark_invitation_sent

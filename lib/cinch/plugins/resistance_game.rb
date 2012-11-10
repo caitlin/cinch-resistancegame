@@ -39,24 +39,25 @@ module Cinch
       match /vote (.+)/i,        :method => :team_vote
       match /mission (.+)/i,     :method => :mission_vote
       match /assassinate (.+)/i, :method => :assassinate_player
+      match /kill (.+)/i,        :method => :assassinate_player
 
       # helpers
-      match /invite/i,           :method => :invite
-      match /subscribe/i,        :method => :subscribe
-      match /unsubscribe/i,      :method => :unsubscribe
-      match /who$/i,             :method => :list_players
-      match /missions/i,         :method => :missions_overview
-      match /mission(\d)/i,      :method => :mission_summary
-      match /info/i,             :method => :game_info
-      match /status/i,           :method => :status
-      match /whoami/i,           :method => :whoami
-      match /help ?(.+)?/i,      :method => :help
-      match /intro/i,            :method => :intro
-      match /rules ?(.+)?/i,     :method => :rules
-      match /settings$/i,        :method => :game_settings       
-      match /settings (.+)/i,    :method => :set_game_settings
-      match /changelog$/i,       :method => :changelog_dir
-      match /changelog (\d+)/i,  :method => :changelog
+      match /invite/i,               :method => :invite
+      match /subscribe/i,            :method => :subscribe
+      match /unsubscribe/i,          :method => :unsubscribe
+      match /who$/i,                 :method => :list_players
+      match /missions/i,             :method => :missions_overview
+      match /mission(\d)/i,          :method => :mission_summary
+      match /info/i,                 :method => :game_info
+      match /status/i,               :method => :status
+      match /whoami/i,               :method => :whoami
+      match /help ?(.+)?/i,          :method => :help
+      match /intro/i,                :method => :intro
+      match /rules ?(.+)?/i,         :method => :rules
+      match /settings$/i,            :method => :game_settings       
+      match /settings (base|avalon) ?(.+)?/i, :method => :set_game_settings
+      match /changelog$/i,           :method => :changelog_dir
+      match /changelog (\d+)/i,      :method => :changelog
    
       # mod only commands
       match /reset/i,              :method => :reset_game
@@ -378,12 +379,18 @@ module Cinch
 
               self.pass_out_loyalties
 
-              avalon_note = @game.avalon? ? " This is Resistance: Avalon, with #{@game.roles.map(&:capitalize).join(", ")}." : ""
+              Channel(@channel_name).send "The game has started. #{self.get_game_info}"
 
-              Channel(@channel_name).send "The game has started. #{self.get_game_info}#{avalon_note}"
-              if @game.player_count >= 7
-                Channel(@channel_name).send "This is a 7+ player game. Mission 4 will require TWO FAILS for the Spies."
+              if @game.avalon? 
+                Channel(@channel_name).send "This is Resistance: Avalon, with #{@game.roles.map(&:capitalize).join(", ")}."
               end
+              if @game.with_variant?(:blind_spies)
+                Channel(@channel_name).send "VARIANT: This is the Blind Spies variant. Spies do not reveal to each other."
+              end
+              if @game.player_count >= 7
+                Channel(@channel_name).send "NOTE: This is a 7+ player game. Mission 4 will require TWO FAILS for the Spies."
+              end
+
               Channel(@channel_name).send "Player order is: #{@game.players.map{ |p| p.user.nick }.join(' ')}"
               Channel(@channel_name).send "MISSION #{@game.current_round.number}. Team Leader: #{@game.team_leader.user.nick}. Please choose a team of #{@game.current_team_size} to go on the first mission."
               User(@game.team_leader.user).send "You are team leader. Please choose a team of #{@game.current_team_size} to go on first mission. \"!team#{team_example(@game.current_team_size)}\""
@@ -572,8 +579,13 @@ module Cinch
           end
         else
           if player.spy?
-            other_spies = @game.spies.reject{ |s| s == player }.map{ |s| s.user.nick }
-            loyalty_msg = "You are A SPY! The other spies are: #{other_spies.join(', ')}."
+            if @game.with_variant?(:blind_spies)
+              spy_message = "This is the Blind Spies variant. You are a spy, but you don't reveal to the other spies and they don't reveal to you."
+            else
+              other_spies = @game.spies.reject{ |s| s == player }.map{ |s| s.user.nick }
+              spy_message = "The other spies are: #{other_spies.join(', ')}."
+            end
+            loyalty_msg = "You are A SPY! #{spy_message}"
           else
             loyalty_msg = "You are a member of the RESISTANCE."
           end
@@ -840,25 +852,30 @@ module Cinch
 
       def game_settings(m)
         if @game.type == :base
-          m.reply "Game settings: Base."
+          variants = @game.variants
+          with_variants = variants.empty? ? "" : " Using variant: #{variants.map{ |o| o.to_s.gsub("_", " ").capitalize }.join(", ")}"
+          m.reply "Game settings: Base.#{with_variants}"
         elsif @game.type == :avalon
           m.reply "Game settings: Avalon. Using roles: #{@game.roles.map(&:capitalize).join(", ")}."
         end
       end
 
-      def set_game_settings(m, options)
+      def set_game_settings(m, game_type, game_options = "")
         unless @game.started?
+          options = game_options || ""
           options = options.split(" ")
-          game_type = options.shift
           if game_type.downcase == "avalon"
             valid_options = ["percival", "mordred", "oberon", "morgana"]
             options.keep_if{ |opt| valid_options.include?(opt.downcase) }
             roles = (["merlin", "assassin"] + options)
-            @game.change_type "avalon", roles.map(&:to_sym)
+            @game.change_type :avalon, :roles => roles
             Channel(@channel_name).send "The game has been changed to Avalon. Using roles: #{roles.map(&:capitalize).join(", ")}."
           else
-            @game.change_type "base"
-            Channel(@channel_name).send "The game has been changed to base."
+            valid_options = ["blind_spies"]
+            options.keep_if{ |opt| valid_options.include?(opt.downcase) }
+            @game.change_type :base, :variants => options
+            with_variants = options.empty? ? "" : " Using variant: #{options.map{ |o| o.gsub("_", " ").capitalize }.join(", ")}"
+            Channel(@channel_name).send "The game has been changed to base.#{with_variants}"
           end
         end
       end
