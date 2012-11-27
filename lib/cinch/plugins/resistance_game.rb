@@ -275,7 +275,7 @@ module Cinch
             settings = load_settings || {}
             subscribers = settings["subscribers"]
             current_players = @game.players.map{ |p| p.user.nick }
-            subscribers.each do |subscriber|
+            subscribers.shuffle!.each do |subscriber|
               unless current_players.include? subscriber
                 User(subscriber).refresh
                 if User(subscriber).online?
