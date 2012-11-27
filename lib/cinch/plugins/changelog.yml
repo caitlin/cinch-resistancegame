@@ -1,3 +1,6 @@
+- date: "2012-11-27"
+  changes:
+    - "Added shuffle to !invite function"
 - date: "2012-10-10"
   changes:
     - "Added blind spies variant - !settings base blind_spies"
