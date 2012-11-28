@@ -275,6 +275,9 @@ class Game
     if self.started?
       if @current_round.in_team_making_phase?
         status = "Waiting on #{self.team_leader.user} to propose a team of #{self.current_team_size}"
+      elsif @current_round.in_team_proposed_phase?
+        proposed_team = @current_round.team.players.map(&:user).join(', ')
+        status = "Team proposed: #{proposed_team} - Waiting on #{self.team_leader.user} to confirm or choose a new team"
       elsif @current_round.in_vote_phase?
         status = "Waiting on players to vote: #{self.not_voted.map(&:user).join(", ")}"
       elsif @current_round.in_mission_phase?
@@ -469,6 +472,10 @@ class Round
     self.state == :team_making
   end
 
+  def in_team_proposed_phase?
+    self.state == :team_proposed
+  end
+
   def in_vote_phase?
     self.state == :vote
   end
@@ -483,6 +490,10 @@ class Round
 
   def back_to_team_making
     self.state = :team_making
+  end
+
+  def team_proposed
+    self.state = :team_proposed
   end
 
   def call_for_votes

@@ -426,6 +426,7 @@ module Cinch
               if @game.team_selected? # another safe check just because
                 proposed_team = @game.current_round.team.players.map(&:user).join(', ')
                 Channel(@channel_name).send "#{m.user.nick} is proposing the team: #{proposed_team}."
+                @game.current_round.team_proposed
               end
             end
           else
