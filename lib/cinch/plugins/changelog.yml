@@ -1,6 +1,7 @@
 - date: "2012-11-28"
   changes:
     - "!status will return proposed team if it has not been confirmed"
+    - "Added !confirm to team leader PM prompts"
 - date: "2012-11-27"
   changes:
     - "Added shuffle to !invite function"

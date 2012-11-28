@@ -394,6 +394,7 @@ module Cinch
               Channel(@channel_name).send "Player order is: #{@game.players.map{ |p| p.user.nick }.join(' ')}"
               Channel(@channel_name).send "MISSION #{@game.current_round.number}. Team Leader: #{@game.team_leader.user.nick}. Please choose a team of #{@game.current_team_size} to go on the first mission."
               User(@game.team_leader.user).send "You are team leader. Please choose a team of #{@game.current_team_size} to go on first mission. \"!team#{team_example(@game.current_team_size)}\""
+              User(@game.team_leader.user).send "After you've chosen a team, \"!confirm\" to put it up for vote, or you can make a new team."
             else
               m.reply "You are not in the game.", true
             end
