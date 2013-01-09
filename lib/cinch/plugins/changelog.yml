@@ -8,6 +8,7 @@
 - date: "2012-10-10"
   changes:
     - "Added blind spies variant - !settings base blind_spies"
+    - "Added tips spies for resistance - !tips spies|resistance"
 - date: "2012-10-07"
   changes:
     - "Prevent highlight on informational command output"

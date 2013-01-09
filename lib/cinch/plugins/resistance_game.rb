@@ -58,6 +58,8 @@ module Cinch
       match /settings (base|avalon) ?(.+)?/i, :method => :set_game_settings
       match /changelog$/i,           :method => :changelog_dir
       match /changelog (\d+)/i,      :method => :changelog
+      match /about/i,                :method => :about
+      match /tips (resistance|spies|spy)/i, :method => :tips
    
       # mod only commands
       match /reset/i,              :method => :reset_game
@@ -118,7 +120,7 @@ module Cinch
           User(m.user).send "!reset - completely resets the game to brand new"
           User(m.user).send "!replace nick1 nick1 - replaces a player in-game with a player out-of-game"
           User(m.user).send "!kick nick1 - removes a presumably unresponsive user from an unstarted game"
-          User(m.user).send "!room (silent|vocal) - switches the channel from voice only users and back"
+          User(m.user).send "!room silent|vocal - switches the channel from voice only users and back"
           User(m.user).send "!roles - tells you the loyalties of the players in the game"
         else 
           case page
@@ -129,10 +131,11 @@ module Cinch
             User(m.user).send "!status - shows current status of the game, which phase of the round the game is in"
             User(m.user).send "!missions - shows all previous mission results"
             User(m.user).send "!mission1, !mission2, ... - shows a mission summary, including team voting history"
-            User(m.user).send "!whoami - returns your current loyalty role."
+            User(m.user).send "!whoami - returns your current loyalty role"
           when "3"
             User(m.user).send "--- HELP PAGE 3/3 ---"
             User(m.user).send "!rules (avalon|avroles) - provides rules for the game; when provided with an argument, provides specified rules"
+            User(m.user).send "!tips resistance|spies - provides tips for playing either side of the game"
             User(m.user).send "!subscribe - subscribe your current nick to receive PMs when someone calls !invite"
             User(m.user).send "!unsubscribe - remove your nick from the invitation list"
             User(m.user).send "!invite - invites #boardgames and subscribers to join the game"
@@ -143,7 +146,7 @@ module Cinch
             User(m.user).send "!leave - leaves the game"
             User(m.user).send "!start - starts the game"
             User(m.user).send "!team user1 user2 user3 - proposes a team with the specified users on it"
-            User(m.user).send "!team confirm - puts the proposed team up for voting"
+            User(m.user).send "!confirm - puts the proposed team up for voting"
             User(m.user).send "!vote yes|no - vote for teams to make or not, yes or no"
             User(m.user).send "!mission pass|fail - vote for missions to pass or not, pass or fail"
             User(m.user).send "!help (#) - when provided a number, pulls up specified page"
@@ -177,6 +180,29 @@ module Cinch
           User(m.user).send "If the Team is not approved, the next player becomes the Team Leader and proposes a new Team. If the Team proposal process fails 5 times in a row, the Spies win the game immediately; in practice, as there are always fewer Spies than Resistance, this means that everyone should vote to approve the fifth proposed Team since the last Mission."
           User(m.user).send "When a proposed Team has been approved, they go on the Mission. The Team members then decide if they want the Mission to Pass or Fail. Resistance can only vote for the Mission to Pass; it is against their objective to do otherwise. Spies can choose to Pass OR Fail. Maybe they want to gain trust; but maybe they want to score a Mission Fail for their team."
           User(m.user).send "After Mission decisions have been made, the results are shuffled and revealed. It takes only ONE Fail for the whole Mission to Fail. (Exception: in games with 7 or more players, because of the increased number of Spies, it requires TWO Fails for 4th Mission to Fail.) A Mission which does not Fail will Pass. After a Mission has been completed (Pass or Fail), the next player becomes the new Team Leader and proposes the next Team."
+        end
+      end
+
+      def about(m)
+        User(m.user).send "ResistanceBot is an IRC-playable version of The Resistance by Don Eskridge. Find out more about the game on: http://boardgamegeek.com/boardgame/41114/the-resistance"
+        User(m.user).send "This bot was created by: caitlinface. Many thanks to Chank (helping with development), timotab (helping with project management), and a large handful of #boardgames for testing early versions."
+        User(m.user).send "It was written in Ruby, using the Cinch framework. Yes, I'll put it on GitHub soon. Here's our to-do list: https://www.pivotaltracker.com/projects/642861"
+        #User(m.user).send "Copies \"sold\": 3"
+      end
+
+      def tips(m, for_who)
+        case for_who
+        when "resistance"
+          User(m.user).send "--- TIPS FOR RESISTANCE ---"
+          User(m.user).send "Get on the team - As a resistance operative you need to get on the mission teams, letting even a single spy on the team is enough to make it fail. The leader gets to propose team members, but everyone gets a vote. If the leader's proposal doesn't get enough votes then the next player becomes the leader and gets to propose a new team."
+          User(m.user).send "Build trust in yourself - A good resistance player not only determines who the spies are, but also builds trust in themselves. The best way to build trust is to explain to others what you are attempting to do and why. When interrogated the spies can stumble in their web of deceit and expose themselves."
+          User(m.user).send "Trust no one - If you don't trust everyone on the team then strongly consider rejecting the proposed Mission Team. Good resistance players will usually use three or more votes per round, carefully watching who is voting yes and asking them why. Remember the spies know each other and sometimes you can catch them approving a vote just because a spy was on the proposed team."
+          User(m.user).send "Use all the information available - Information in The Resistance comes at multiple levels. First are players' voting patterns, second are Mission results, and third are cues that you can discern from player interactions. Resistance Operatives must use all the information at hand to root out the Spy infestation."
+        when *["spies", "spy"]
+          User(m.user).send "--- TIPS FOR SPIES ---"
+          User(m.user).send "Act like the resistance - The resistance players are out to get you - think fast and remember if you act and vote like a resistance player you will be harder to spot. All the resistance operatives will want to go on the missions, and so should you."
+          User(m.user).send "Change your MO - From game to game spies can get stuck in predictable patterns of behavior, such as never failing the first mission. If the resistance operatives can predict your behavior, they are more likely to uncover your identity."
+          User(m.user).send "Never give up - Even if you are caught as a spy, you still have a valuable role to play in keeping the other spies safe. Use your status as a known spy to create confusion and discontent among the resistance operatives while protecting the remaining undercover spies."
         end
       end
 
@@ -269,7 +295,6 @@ module Cinch
             m.reply "An invitation cannot be sent out again so soon."
           else      
             @game.mark_invitation_sent
-            User("BG3PO").send "!invite_to_resistance_game"
             User(m.user).send "Invitation has been sent."
 
             settings = load_settings || {}
@@ -867,18 +892,22 @@ module Cinch
           options = game_options || ""
           options = options.split(" ")
           if game_type.downcase == "avalon"
-            valid_options = ["percival", "mordred", "oberon", "morgana"]
-            options.keep_if{ |opt| valid_options.include?(opt.downcase) }
-            roles = (["merlin", "assassin"] + options)
-            @game.change_type :avalon, :roles => roles
-            Channel(@channel_name).send "The game has been changed to Avalon. Using roles: #{roles.map(&:capitalize).join(", ")}."
+            valid_role_options    = ["percival", "mordred", "oberon", "morgana"]
+            valid_variant_options = ["lady_of_the_lake"]
+            role_options    = options.select{ |opt| valid_role_options.include?(opt.downcase) }
+            variant_options = options.select{ |opt| valid_variant_options.include?(opt.downcase) }
+            roles = ["merlin", "assassin"] + role_options
+            @game.change_type :avalon, :roles => roles, :variants => variant_options
+            game_type_message = "The game has been changed to Avalon. Using roles: #{roles.map(&:capitalize).join(", ")}."
           else
-            valid_options = ["blind_spies"]
-            options.keep_if{ |opt| valid_options.include?(opt.downcase) }
+            valid_variant_options = ["blind_spies"]
+            variant_options = options.select{ |opt| valid_variant_options.include?(opt.downcase) }
+            
             @game.change_type :base, :variants => options
-            with_variants = options.empty? ? "" : " Using variant: #{options.map{ |o| o.gsub("_", " ").capitalize }.join(", ")}"
-            Channel(@channel_name).send "The game has been changed to base.#{with_variants}"
+            game_type_message = "The game has been changed to base."
           end
+          with_variants = variant_options.empty? ? "" : " Using variant: #{options.map{ |o| o.gsub("_", " ").capitalize }.join(", ")}."
+          Channel(@channel_name).send "#{game_type_message}#{with_variants}"
         end
       end
 

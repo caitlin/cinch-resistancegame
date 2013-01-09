@@ -82,7 +82,7 @@ class Game
   end
 
   def has_player?(user)
-    found = self.players.find{ |p| p.user == user }
+    found = self.find_player(user)
     found.nil? ? false : true
   end
 
@@ -105,6 +105,12 @@ class Game
       self.roles    = []
       self.variants = options[:variants].map(&:to_sym)
     end
+
+    puts "="*80
+    puts "roles => #{roles.inspect}"
+    puts "variants => #{variants.inspect}"
+    puts "="*80
+    
   end
 
   def avalon?
@@ -137,7 +143,7 @@ class Game
     self.assign_loyalties
     @current_round = Round.new(1)
     self.rounds << @current_round
-    self.players.rotate!(rand(MAX_PLAYERS)) # shuffle seats
+    self.players.shuffle.rotate!(rand(MAX_PLAYERS)) # shuffle seats
     self.assign_team_leader
     $player_count = self.player_count
   end
