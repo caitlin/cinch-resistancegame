@@ -786,7 +786,7 @@ module Cinch
       def is_mod?(nick)
         # make sure that the nick is in the mod list and the user in authenticated 
         user = User(nick) 
-	user.refresh
+        user.refresh
         user.authed? && @mods.include?(user.authname)
       end
 
