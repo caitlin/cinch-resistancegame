@@ -1,5 +1,6 @@
 require 'cinch'
 require 'yaml'
+require 'amatch'
 
 require File.expand_path(File.dirname(__FILE__)) + '/core'
 
@@ -432,15 +433,32 @@ module Cinch
       def propose_team(m, players)
         if players != "confirm" 
           # make sure the providing user is team leader 
+          player_nicks = @game.players.map{|p| p.user.nick }
           if m.user == @game.team_leader.user
-            players = players.split(/[\s,]+/).map{ |p| @game.find_player(User(p)) || p }.uniq
+            players = players.split(/[\s,]+/).map do |p| 
+              fuzzy_matches = p.levenshtein_similar(player_nicks) # leve_matches
+              # jaro_matches = p.jaro_similar(player_nicks)
+              # fuzzy_matches = [jaro_matches,leve_matches].transpose.map {|x| x.reduce(:+)}
+              high_fuzzy = fuzzy_matches.max
+              puts "="*80
+              puts player_nicks.inspect
+              puts fuzzy_matches.inspect
+              puts "="*80
+              
+              if high_fuzzy > 0.15
+                best_nick = player_nicks[fuzzy_matches.index(high_fuzzy)]
+              else 
+                best_nick = p
+              end
+              @game.find_player(User(best_nick)) || best_nick
+            end.uniq
 
             non_players = players.dup.delete_if{ |p| p.is_a? Player }
             actual_players = players.dup.keep_if{ |p| p.is_a? Player }
 
             # make sure the names are valid
             if non_players.count > 0
-              User(@game.team_leader.user).send "You have entered invalid name(s): #{non_players.join(', ')}"
+              User(@game.team_leader.user).send "Cannot find player(s): #{non_players.join(', ')}"
             # then check sizes
             elsif players.count < @game.current_team_size
               User(@game.team_leader.user).send "You don't have enough operatives on the team. You need #{@game.current_team_size}."
