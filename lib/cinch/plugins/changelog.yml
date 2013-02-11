@@ -1,3 +1,6 @@
+- date: "2013-02-11"
+  changes: 
+    - "Added fuzzy name matching for team creation"
 - date: "2012-11-28"
   changes:
     - "!status will return proposed team if it has not been confirmed"
