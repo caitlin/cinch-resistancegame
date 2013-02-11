@@ -618,7 +618,7 @@ class Player
     {
       'json_class'   => self.class.name,
       'data'         => {
-        'object'       => self,
+        #'object'       => self,
         'user'         => self.user.nick,
         'loyalty'      => self.loyalty
       }
