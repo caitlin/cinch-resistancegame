@@ -1,3 +1,6 @@
+- date: "2013-03-01"
+  changes:
+    - "Changed !status output before game has started"
 - date: "2013-02-11"
   changes: 
     - "Added fuzzy name matching for team creation"

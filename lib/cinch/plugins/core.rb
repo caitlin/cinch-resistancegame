@@ -293,7 +293,7 @@ class Game
       if self.player_count.zero?
         status = "No game in progress."
       else
-        status = "Game being started. #{player_count} players have joined: #{self.players.map(&:user).join(", ")}"
+        status = "A game is forming. #{player_count} players have joined: #{self.players.map(&:user).join(", ")}"
       end
     end
     status
