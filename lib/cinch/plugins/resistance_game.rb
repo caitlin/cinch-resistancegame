@@ -549,6 +549,8 @@ module Cinch
             killed = @game.find_player(target)
             if killed.nil?
               User(m.user).send "\"#{target}\" is an invalid target."
+            elsif killed.spy?
+              User(m.user).send "\"#{target}\" is not a member of the resistance"
             else
               spies, resistance = get_loyalty_info
               if killed.role?(:merlin)
