@@ -1,3 +1,6 @@
+- date: "2013-03-04"
+  changes:
+    - "Added !vote cancel"
 - date: "2013-03-01"
   changes:
     - "Changed !status output before game has started"

@@ -236,6 +236,10 @@ class Game
     @current_round.team.add_vote(self.find_player(player), vote)
   end
 
+  def cancel_vote_for_team(player)
+    @current_round.team.remove_vote(self.find_player(player))
+  end
+
   def not_voted
     all_players = self.players
     voted_players = @current_round.team.voted
@@ -560,6 +564,10 @@ class Team
 
   def add_vote(player, vote)
     self.team_votes[player] = vote
+  end
+
+  def remove_vote(player)
+    self.team_votes.delete(player)
   end
 
   def voted

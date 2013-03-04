@@ -148,7 +148,7 @@ module Cinch
             User(m.user).send "!start - starts the game"
             User(m.user).send "!team user1 user2 user3 - proposes a team with the specified users on it"
             User(m.user).send "!confirm - puts the proposed team up for voting"
-            User(m.user).send "!vote yes|no - vote for teams to make or not, yes or no"
+            User(m.user).send "!vote yes|no|cancel - vote for teams to make or not, yes or no. Cancel will clear your current vote"
             User(m.user).send "!mission pass|fail - vote for missions to pass or not, pass or fail"
             User(m.user).send "!help (#) - when provided a number, pulls up specified page"
           end
@@ -502,7 +502,10 @@ module Cinch
       def team_vote(m, vote)
         if @game.current_round.in_vote_phase? && @game.has_player?(m.user)
           vote.downcase!
-          if ['yes', 'no'].include?(vote)
+          if ['cancel'].include?(vote)
+            @game.cancel_vote_for_team(m.user)
+            User(m.user).send "Your vote has been canceled."
+          elsif ['yes', 'no'].include?(vote)
             @game.vote_for_team(m.user, vote)
             User(m.user).send "You voted '#{vote}' for the team."
             if @game.all_team_votes_in?
