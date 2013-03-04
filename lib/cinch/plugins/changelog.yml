@@ -1,6 +1,7 @@
 - date: "2013-03-04"
   changes:
     - "Added !vote cancel"
+    - "Fixed assassinate target to be resistance only"
 - date: "2013-03-01"
   changes:
     - "Changed !status output before game has started"
