@@ -697,7 +697,7 @@ module Cinch
             self.do_end_game
           else
             hammer_warning = (@game.current_round.hammer_team?) ? " This is your LAST chance at making a team for this mission; if this team is not accepted, the Resistance loses." : ""
-            Channel(@channel_name).send "MISSION #{@game.current_round.number}. #{@game.team_leader.user.nick} is the new team leader. Please choose a team of #{@game.current_team_size} to go on the this mission.#{hammer_warning}"
+            Channel(@channel_name).send "MISSION #{@game.current_round.number}. #{@game.team_leader.user.nick} is the new team leader. Please choose a team of #{@game.current_team_size} to go on the mission.#{hammer_warning}"
             User(@game.team_leader.user).send "You are the new team leader. Please choose a team of #{@game.current_team_size} to go on the mission. \"!team#{team_example(@game.current_team_size)}\""
             @game.current_round.back_to_team_making
           end
