@@ -1,3 +1,7 @@
+- date: "2013-03-05"
+    - "Fixed assassinate to only work after 3rd resistance mission pass"
+    - "Fixed mission overview during assassination phase"
+    - "Added assassination status"
 - date: "2013-03-04"
   changes:
     - "Added !vote cancel"

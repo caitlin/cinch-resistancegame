@@ -219,9 +219,9 @@ module Cinch
         round = @game.current_round.number
         (1..round).to_a.each do |number|
           prev_round = @game.get_prev_round(number)
-          if ! prev_round.nil? && (prev_round.ended? || prev_round.in_mission_phase?)
+          if ! prev_round.nil? && (prev_round.ended? || prev_round.in_mission_phase? || @game.current_round.in_assassinate_phase?)
             team = prev_round.team
-            if prev_round.ended?
+            if prev_round.ended? || @game.current_round.in_assassinate_phase?
               if prev_round.mission_success?
                 if prev_round.special_round?
                   fail_count = prev_round.mission_fails
@@ -260,7 +260,7 @@ module Cinch
               m.reply "No teams have been voted on yet."
             end
           end
-          if prev_round.ended?
+          if prev_round.ended? || @game.current_round.in_assassinate_phase?
             m.reply "RESULT: #{prev_round.mission_success? ? "PASSED" : "FAILED (#{prev_round.mission_fails})"}"
           end
         end
@@ -544,7 +544,7 @@ module Cinch
       end
 
       def assassinate_player(m, target)
-        if @game.is_over?
+        if @game.is_over? && @game.current_round.in_assassinate_phase?
           if @game.find_player_by_role(:assassin).user == m.user
             killed = @game.find_player(target)
             if killed.nil?
@@ -754,6 +754,7 @@ module Cinch
           self.start_new_game
         else
           if @game.avalon?
+            @game.assassinate
             assassin = @game.find_player_by_role(:assassin)
             Channel(@channel_name).send "The resistance successfully completed the missions, but the spies still have a chance."
             Channel(@channel_name).send "The spies are: #{spies.join(", ")}. Assassin, choose a resistance member to assassinate."

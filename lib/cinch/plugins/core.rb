@@ -292,6 +292,8 @@ class Game
         status = "Waiting on players to vote: #{self.not_voted.map(&:user).join(", ")}"
       elsif @current_round.in_mission_phase?
         status = "Waiting on players to return from the mission: #{self.not_back_from_mission.map(&:user).join(", ")}"
+      elsif @current_round.in_assassinate_phase?
+        status = "Waiting on the assassin to choose a target"
       end
     else
       if self.player_count.zero?
@@ -390,6 +392,10 @@ class Game
     @current_round.go_on_mission    
   end
 
+  def assassinate
+    @current_round.assassinate
+  end
+
   #----------------------------------------------
   # Other
   #----------------------------------------------
@@ -419,7 +425,7 @@ class Round
   attr_accessor :teams, :number, :mission_votes, :state
 
   def initialize(number)
-    self.state         = :team_making # team_making, :team_confirm, vote, mission, end
+    self.state         = :team_making # team_making, :team_confirm, vote, mission, assassinate, end
     self.number        = number
     self.teams         = [Team.new]
     self.mission_votes = {}
@@ -459,10 +465,14 @@ class Round
 
   def mission_success?
     mission_score = self.mission_fails
-    if self.special_round?
-      success = mission_score < 2 # need 2 fails
+    if mission_score.nil?
+      success = nil
     else
-      success = mission_score < 1 # otherwise need 1 fail
+      if self.special_round?
+        success = mission_score < 2 # need 2 fails
+      else
+        success = mission_score < 1 # otherwise need 1 fail
+      end
     end 
     success
   end
@@ -494,9 +504,14 @@ class Round
     self.state == :mission
   end
 
+  def in_assassinate_phase?
+    self.state == :assassinate
+  end
+
   def ended?
     self.state == :end
   end
+
 
   def back_to_team_making
     self.state = :team_making
@@ -512,6 +527,10 @@ class Round
 
   def go_on_mission
     self.state = :mission
+  end
+
+  def assassinate
+    self.state = :assassinate
   end
 
   def end_round
