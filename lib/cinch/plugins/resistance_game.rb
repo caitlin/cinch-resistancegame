@@ -548,8 +548,6 @@ module Cinch
                 if @game.all_mission_votes_in?
                   self.process_mission_votes
                 end
-              else
-                User(player.user).send "DOOFUS!"
               end
             else 
               User(player.user).send "You must vote #{valid_options.join(" or ")}."
