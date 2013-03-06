@@ -491,14 +491,18 @@ module Cinch
       def confirm_team(m)
         # make sure the providing user is team leader 
         if m.user == @game.team_leader.user
-          if @game.team_selected? 
-            @game.current_round.call_for_votes
-            proposed_team = @game.current_round.team.players.map(&:user).join(', ')
-            Channel(@channel_name).send "The proposed team: #{proposed_team}. Time to vote!"
-            @game.players.each do |p|
-              hammer_warning = (@game.current_round.hammer_team?) ? " This is your LAST chance at voting a team for this mission; if this team is not accepted, the Resistance loses." : ""
-              vote_prompt = "Time to vote! Vote whether or not you want the team (#{proposed_team}) to go on the mission or not. \"!vote yes\" or \"!vote no\".#{hammer_warning}"
-              User(p.user).send vote_prompt
+          if @game.team_selected?
+            unless @game.current_round.in_vote_phase?
+              @game.current_round.call_for_votes
+              proposed_team = @game.current_round.team.players.map(&:user).join(', ')
+              Channel(@channel_name).send "The proposed team: #{proposed_team}. Time to vote!"
+              @game.players.each do |p|
+                hammer_warning = (@game.current_round.hammer_team?) ? " This is your LAST chance at voting a team for this mission; if this team is not accepted, the Resistance loses." : ""
+                vote_prompt = "Time to vote! Vote whether or not you want the team (#{proposed_team}) to go on the mission or not. \"!vote yes\" or \"!vote no\".#{hammer_warning}"
+                User(p.user).send vote_prompt
+              end
+            else
+              User(@game.team_leader.user).send "The team has already been confirmed"
             end
           else 
             User(@game.team_leader.user).send "You don't have enough members on the team. You need #{@game.current_team_size} operatives."
