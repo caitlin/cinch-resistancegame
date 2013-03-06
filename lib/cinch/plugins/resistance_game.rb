@@ -542,10 +542,14 @@ module Cinch
           if @game.current_round.team.players.include?(player)
             vote.downcase!
             if valid_options.include?(vote)
-              @game.vote_for_mission(m.user, vote)
-              User(m.user).send "You voted for the mission to '#{vote}'."
-              if @game.all_mission_votes_in?
-                self.process_mission_votes
+              unless  @game.compare_vote_for_mission(m.user, vote)
+                @game.vote_for_mission(m.user, vote)
+                User(m.user).send "You voted for the mission to '#{vote}'."
+                if @game.all_mission_votes_in?
+                  self.process_mission_votes
+                end
+              else
+                User(player.user).send "DOOFUS!"
               end
             else 
               User(player.user).send "You must vote #{valid_options.join(" or ")}."

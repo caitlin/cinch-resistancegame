@@ -268,6 +268,10 @@ class Game
     @current_round.mission_votes[self.find_player(player)] = vote
   end
 
+  def compare_vote_for_mission(player, vote)
+    @current_round.mission_votes[self.find_player(player)] == vote
+  end
+
   def not_back_from_mission
     team_players = @current_round.team.players
     back_players = @current_round.mission_votes.keys

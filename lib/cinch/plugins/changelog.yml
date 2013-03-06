@@ -2,6 +2,7 @@
   changes:
     - "Added teamsizes to rules"
     - "Ignore !confirm after team has already been confirmed"
+    - "Fixed missions to only accept the last vote"
 - date: "2013-03-05"
   changes:
     - "Fixed assassinate to only work after 3rd resistance mission pass"
