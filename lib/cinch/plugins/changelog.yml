@@ -1,3 +1,6 @@
+- date: "2013-03-06"
+  changes:
+    - "Added teamsizes to rules"
 - date: "2013-03-05"
   changes:
     - "Fixed assassinate to only work after 3rd resistance mission pass"
