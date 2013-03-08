@@ -710,10 +710,10 @@ module Cinch
       def get_loyalty_info
         if @game.type == :avalon
           spies = @game.spies.sort_by{|s| s.loyalty}.map do |s|
-            "#{s.user.nick}" + (s.loyalty != :spy ? " (#{s.loyalty.titleize})" : "" )
+            "#{s.user.nick}" + (s.loyalty != :spy ? " (#{s.loyalty.to_s.titleize})" : "" )
           end
           resistance = @game.resistance.sort_by{|r| r.loyalty}.map do |r|
-            "#{r.user.nick}" + (r.loyalty != :resistance ? " (#{r.loyalty.titleize})" : "" )
+            "#{r.user.nick}" + (r.loyalty != :resistance ? " (#{r.loyalty.to_s.titleize})" : "" )
           end          
         else
           spies = @game.spies.map{ |s| s.user.nick }
