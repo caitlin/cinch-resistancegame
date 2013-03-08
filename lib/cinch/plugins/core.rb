@@ -28,7 +28,7 @@ class Game
       10 => { 1 => 3, 2 => 4, 3 => 4, 4 => 5, 5 => 5}
     }
 
-  attr_accessor :started, :players, :rounds, :type, :roles, :variants, :invitation_sent, :time_start, :time_end
+  attr_accessor :started, :players, :rounds, :type, :roles, :variants, :lancelot_deck, :invitation_sent, :time_start, :time_end
   
   def initialize
     self.started         = false
@@ -40,6 +40,7 @@ class Game
     self.invitation_sent = false
     self.time_start      = nil
     self.time_end        = nil
+    self.lancelot_deck   = []
   end
 
   #----------------------------------------------
@@ -100,16 +101,17 @@ class Game
     self.type = type
     if type == :avalon
       self.roles   = options[:roles].map(&:to_sym)
-      self.variants = []
+      self.variants = options[:variants].map(&:to_sym)
     else
       self.roles    = []
       self.variants = options[:variants].map(&:to_sym)
     end
 
-    puts "="*80
-    puts "roles => #{roles.inspect}"
-    puts "variants => #{variants.inspect}"
-    puts "="*80
+    # # debug help
+    # puts "="*80
+    # puts "roles => #{roles.inspect}"
+    # puts "variants => #{variants.inspect}"
+    # puts "="*80
     
   end
 
@@ -141,6 +143,7 @@ class Game
     self.started = true
     self.time_start = Time.now
     self.assign_loyalties
+    self.make_lancelot_deck if self.variants.include?(:lancelot1)
     @current_round = Round.new(1)
     self.rounds << @current_round
     self.players.shuffle.rotate!(rand(MAX_PLAYERS)) # shuffle seats
@@ -149,10 +152,8 @@ class Game
   end
 
   def save_game(directory)
-    self.time_end = Time.now
-    output = File.new("#{directory}#{self.time_end.to_s}", 'w')
-
-    output.puts JSON.dump(self)
+    output = File.new("#{directory}/#{Time.now.to_s}", 'w')
+    output.puts YAML.dump(self)
     output.close
   end
 
@@ -161,7 +162,6 @@ class Game
     loyalties = LOYALTIES[self.players.count]
     resistance_count = loyalties[:resistance]
     spy_count = loyalties[:spies]
-
 
     loyalty_deck = []
 
@@ -173,6 +173,15 @@ class Game
       resistance_count -= 1
       spy_count -= 1
 
+      if self.variants.include?(:lancelot3) || self.variants.include?(:lancelot1)
+        loyalty_deck << :good_lancelot
+        resistance_count -= 1
+      end 
+      if self.variants.include?(:lancelot3) || self.variants.include?(:lancelot1)
+        loyalty_deck << :evil_lancelot
+        spy_count -= 1
+      end 
+
       if self.roles.include?(:percival)
         loyalty_deck << :percival
         resistance_count -= 1
@@ -183,13 +192,13 @@ class Game
         spy_count -= 1
       end 
 
-      if self.roles.include?(:oberon)
-        loyalty_deck << :oberon
+      if self.roles.include?(:morgana)
+        loyalty_deck << :morgana
         spy_count -= 1
       end 
 
-      if self.roles.include?(:morgana)
-        loyalty_deck << :morgana
+      if self.roles.include?(:oberon)
+        loyalty_deck << :oberon
         spy_count -= 1
       end 
 
@@ -204,6 +213,27 @@ class Game
     self.players.each_with_index do |player, i|
       player.receive_loyalty(loyalty_deck[i])
     end
+  end
+
+  def make_lancelot_deck
+    self.lancelot_deck << [:switch] * 2
+    self.lancelot_deck << [:no_switch] * 3
+    self.lancelot_deck.flatten!.shuffle!
+    puts "="*80
+    puts lancelot_deck.inspect
+    puts "="*80
+    
+  end
+
+  def lancelots_switched?
+    self.lancelot_deck.count(:switch) % 2 == 1
+  end
+
+  def switch_lancelots
+    good_lancelot = self.find_player_by_role(:good_lancelot)
+    evil_lancelot = self.find_player_by_role(:evil_lancelot)
+    good_lancelot.switch_allegiance
+    evil_lancelot.switch_allegiance
   end
 
   # BUILDING TEAMS
@@ -331,6 +361,17 @@ class Game
     @current_round = Round.new(new_round)
     self.rounds << @current_round
     self.assign_team_leader
+    if self.variants.include?(:lancelot1)
+      if @current_round.number > 2
+        @current_round.lancelot_card = self.lancelot_deck.pop
+        if @current_round.lancelots_switch?
+          self.switch_lancelots
+        end
+        puts "="*80
+        puts self.lancelot_deck.inspect
+        puts "="*80
+      end
+    end
   end
 
 
@@ -348,6 +389,10 @@ class Game
 
   def current_team_size
     TEAM_SIZES[self.player_count][@current_round.number]
+  end
+
+  def original_spies
+    self.players.select{ |p| p.original_spy? }
   end
 
   def spies
@@ -400,23 +445,6 @@ class Game
     @current_round.assassinate
   end
 
-  #----------------------------------------------
-  # Other
-  #----------------------------------------------
-  
-
-  def to_json(*a)
-    {
-      'json_class'   => self.class.name,
-      'data'         => {
-        'type'         => self.type,
-        'game_length'  => self.game_length,
-        'players'      => self.players,
-        'rounds'       => self.rounds
-      }
-    }.to_json(*a)
-  end
-
 
 end
 
@@ -426,13 +454,14 @@ end
 
 class Round
 
-  attr_accessor :teams, :number, :mission_votes, :state
+  attr_accessor :teams, :number, :mission_votes, :state, :lancelot_card  
 
   def initialize(number)
-    self.state         = :team_making # team_making, :team_confirm, vote, mission, assassinate, end
-    self.number        = number
-    self.teams         = [Team.new]
-    self.mission_votes = {}
+    self.state           = :team_making # team_making, team_confirm, vote, mission, assassinate, end
+    self.number          = number
+    self.teams           = [Team.new]
+    self.mission_votes   = {}
+    self.lancelot_card   = nil
   end
 
   # the current round team is the last team
@@ -443,6 +472,10 @@ class Round
   # proxy for team team leader
   def team_leader
     self.team.team_leader
+  end
+
+  def lancelots_switch?
+    self.lancelot_card == :switch
   end
 
   def fail_count
@@ -541,16 +574,6 @@ class Round
     self.state = :end
   end
 
-  def to_json(*a)
-    {
-      'json_class'   => self.class.name,
-      'data'         => {
-        'number'        => self.number,
-        'teams'         => self.teams,
-        'mission_votes' => self.mission_votes
-      }
-    }.to_json(*a)
-  end
 
 end
 
@@ -602,17 +625,6 @@ class Team
     votes.count('yes') > votes.count('no')
   end
 
-  def to_json(*a)
-    {
-      'json_class'   => self.class.name,
-      'data'         => {
-        'team_leader'  => self.team_leader,
-        'players'      => self.players,
-        'team_votes'   => self.team_votes
-      }
-    }.to_json(*a)
-  end
-
 end
 
 
@@ -622,38 +634,38 @@ end
 
 class Player
 
-  attr_accessor :loyalty, :user
+  attr_accessor :loyalty, :user, :lancelot_switch
 
   def initialize(user)
     self.user = user
     self.loyalty = nil
+    self.lancelot_switch = false
   end 
+
+  def switch_allegiance
+    if self.loyalty == :good_lancelot || self.loyalty == :evil_lancelot
+      self.lancelot_switch = (self.lancelot_switch == true ? false : true)
+    end
+  end
 
   def receive_loyalty(loyalty)
     self.loyalty = loyalty
   end
 
+  def original_spy?
+    [:spy, :assassin, :mordred, :oberon, :morgana, :evil_lancelot].any?{ |role| role == self.loyalty }
+  end
+
   def spy?
-    [:spy, :assassin, :mordred, :oberon, :morgana].any?{ |role| role == self.loyalty }
+    [:spy, :assassin, :mordred, :oberon, :morgana].any?{ |role| role == self.loyalty } || (self.loyalty == :good_lancelot && self.lancelot_switch) || (self.loyalty == :evil_lancelot && !self.lancelot_switch )
   end
 
   def resistance?
-    [:resistance, :merlin, :percival].any?{ |role| role == self.loyalty }
+    [:resistance, :merlin, :percival].any?{ |role| role == self.loyalty } || (self.loyalty == :evil_lancelot && self.lancelot_switch) || (self.loyalty == :good_lancelot && !self.lancelot_switch )
   end
   
   def role?(role)
     self.loyalty == role
-  end
-
-  def to_json(*a)
-    {
-      'json_class'   => self.class.name,
-      'data'         => {
-        #'object'       => self,
-        'user'         => self.user.nick,
-        'loyalty'      => self.loyalty
-      }
-    }.to_json(*a)
   end
 
 end

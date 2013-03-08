@@ -417,10 +417,16 @@ module Cinch
               Channel(@channel_name).send "The game has started. #{self.get_game_info}"
 
               if @game.avalon? 
-                Channel(@channel_name).send "This is Resistance: Avalon, with #{@game.roles.map(&:capitalize).join(", ")}."
+                Channel(@channel_name).send "This is Resistance: Avalon, with #{@game.roles.map{ |r| r.to_s.gsub("_", " ").titleize }.join(", ")}."
               end
               if @game.with_variant?(:blind_spies)
                 Channel(@channel_name).send "VARIANT: This is the Blind Spies variant. Spies do not reveal to each other."
+              end
+              if @game.with_variant?(:lancelot1)
+                Channel(@channel_name).send "VARIANT: This is the Lancelot #1 variant. Lancelots will switch 0, 1, or 2 times, starting at the beginning of Mission 3. Evil Lancelot does not know other spies."
+              end
+              if @game.with_variant?(:lancelot3)
+                Channel(@channel_name).send "VARIANT: This is the Lancelot #3 variant. Lancelots have revealed to each other."
               end
               if @game.player_count >= 7
                 Channel(@channel_name).send "NOTE: This is a 7+ player game. Mission 4 will require TWO FAILS for the Spies."
@@ -608,7 +614,7 @@ module Cinch
       
       def tell_loyalty_to(player)
         if @game.avalon?
-          spies = @game.spies
+          spies = @game.original_spies
 
           # if player is a spy, they can see other spies, but not oberon if he's in play
           if player.spy?
@@ -629,6 +635,14 @@ module Cinch
             revealed_to_percival = ( morgana.nil? ? [merlin] : [merlin, morgana].shuffle )
             revealed_to_percival_names = revealed_to_percival.map!{ |s| s.user.nick }
             loyalty_msg = "You are PERCIVAL (resistance). Help protect Merlin's identity. Merlin is: #{revealed_to_percival_names.join(', ')}."
+          elsif player.role?(:good_lancelot)
+            evil_lancelot = @game.find_player_by_role(:evil_lancelot)
+            show_other = @game.variants.include?(:lancelot3) ? "Evil Lancelot is: #{evil_lancelot.user.nick}." : ""
+            loyalty_msg = "You are GOOD LANCELOT (resistance).#{show_other}"
+          elsif player.role?(:evil_lancelot)
+            good_lancelot = @game.find_player_by_role(:good_lancelot)
+            show_other = @game.variants.include?(:lancelot3) ? "Good Lancelot is: #{good_lancelot.user.nick}. The other spies are: #{other_spies.join(', ')}." : ""
+            loyalty_msg = "You are EVIL LANCELOT (spy).#{show_other}"
           elsif player.role?(:mordred)
             loyalty_msg = "You are MORDRED (spy). You didn't reveal yourself to Merlin. The other spies are: #{other_spies.join(', ')}."
           elsif player.role?(:oberon)
@@ -669,10 +683,10 @@ module Cinch
       def get_loyalty_info
         if @game.type == :avalon
           spies = @game.spies.sort_by{|s| s.loyalty}.map do |s|
-            "#{s.user.nick}" + (s.loyalty != :spy ? " (#{s.loyalty.capitalize})" : "" )
+            "#{s.user.nick}" + (s.loyalty != :spy ? " (#{s.loyalty.titleize})" : "" )
           end
           resistance = @game.resistance.sort_by{|r| r.loyalty}.map do |r|
-            "#{r.user.nick}" + (r.loyalty != :resistance ? " (#{r.loyalty.capitalize})" : "" )
+            "#{r.user.nick}" + (r.loyalty != :resistance ? " (#{r.loyalty.titleize})" : "" )
           end          
         else
           spies = @game.spies.map{ |s| s.user.nick }
@@ -683,6 +697,25 @@ module Cinch
 
       def start_new_round
         @game.start_new_round
+        unless @game.current_round.lancelot_card.nil?
+          if @game.current_round.lancelots_switch?
+            Channel(@channel_name).send "LANCELOTS: Switch!"
+            evil_lancelot = @game.find_player_by_role(:evil_lancelot)
+            good_lancelot = @game.find_player_by_role(:good_lancelot)
+            good_loyalty_msg = "LANCELOTS SWITCH: You are now a member of the RESISTANCE."
+            evil_loyalty_msg = "LANCELOTS SWITCH: You are now a SPY."
+            if @game.lancelots_switched?
+              User(good_lancelot.user).send evil_loyalty_msg
+              User(evil_lancelot.user).send good_loyalty_msg
+            else 
+              User(good_lancelot.user).send good_loyalty_msg
+              User(evil_lancelot.user).send evil_loyalty_msg
+            end
+          
+          else
+            Channel(@channel_name).send "LANCELOTS: No switch."
+          end
+        end
         two_fail_warning = (@game.current_round.special_round?) ? " This mission requires TWO FAILS for the spies." : ""
         Channel(@channel_name).send "MISSION #{@game.current_round.number}. Team Leader: #{@game.team_leader.user.nick}. Please choose a team of #{@game.current_team_size} to go on the mission.#{two_fail_warning}"
         User(@game.team_leader.user).send "You are team leader. Please choose a team of #{@game.current_team_size} to go on the mission. \"!team#{team_example(@game.current_team_size)}\""
@@ -928,25 +961,35 @@ module Cinch
       end
 
       def set_game_settings(m, game_type, game_options = "")
+        # this is really really wonky =(
         unless @game.started?
+          game_change_prefix = m.channel.nil? ? "#{m.user.nick} has changed the game" : "The game has been changed"
           options = game_options || ""
           options = options.split(" ")
           if game_type.downcase == "avalon"
             valid_role_options    = ["percival", "mordred", "oberon", "morgana"]
-            valid_variant_options = ["lady_of_the_lake"]
+            valid_variant_options = ["lady_of_the_lake", "lancelot1", "lancelot3"]
             role_options    = options.select{ |opt| valid_role_options.include?(opt.downcase) }
             variant_options = options.select{ |opt| valid_variant_options.include?(opt.downcase) }
             roles = ["merlin", "assassin"] + role_options
+            if variant_options.include?("lancelot3") || variant_options.include?("lancelot1")
+              roles.push("good_lancelot").push("evil_lancelot")
+            end
             @game.change_type :avalon, :roles => roles, :variants => variant_options
-            game_type_message = "The game has been changed to Avalon. Using roles: #{roles.map(&:capitalize).join(", ")}."
+
+            variant_options = [] # for now
+            variant_options << "Lancelot #1" if @game.variants.include?(:lancelot1)
+            variant_options << "Lancelot #3" if @game.variants.include?(:lancelot3)
+
+            game_type_message = "#{game_change_prefix} to Avalon. Using roles: #{roles.map{ |r| r.gsub("_", " ").titleize }.join(", ")}."
           else
             valid_variant_options = ["blind_spies"]
             variant_options = options.select{ |opt| valid_variant_options.include?(opt.downcase) }
             
             @game.change_type :base, :variants => options
-            game_type_message = "The game has been changed to base."
+            game_type_message = "#{game_change_prefix} to base."
           end
-          with_variants = variant_options.empty? ? "" : " Using variant: #{options.map{ |o| o.gsub("_", " ").capitalize }.join(", ")}."
+          with_variants = variant_options.empty? ? "" : " Using variant: #{variant_options.map{ |o| o.gsub("_", " ").titleize }.join(", ")}."
           Channel(@channel_name).send "#{game_type_message}#{with_variants}"
         end
       end
@@ -982,3 +1025,15 @@ module Cinch
     
   end
 end
+
+#--------------------------------------------------------------------------------
+# Other helpers
+#--------------------------------------------------------------------------------
+
+class String
+  def titleize
+    split(/(\W)/).map(&:capitalize).join
+  end
+end
+
+

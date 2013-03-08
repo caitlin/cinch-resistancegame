@@ -1,3 +1,8 @@
+- date: "2013-03-08"
+  changes:
+    - "Added Lancelots #1 and Lancelots #3"
+    - "Changing game settings in PM now announces changer username"
+    - "Game save back to yml format"
 - date: "2013-03-06"
   changes:
     - "Added teamsizes to rules"
