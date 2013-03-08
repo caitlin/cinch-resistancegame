@@ -238,6 +238,7 @@ class Game
 
   def give_lady_to(player)
     self.lady_token = player
+    player.lady!
   end
 
   def is_lady_round?
@@ -379,9 +380,6 @@ class Game
         if @current_round.lancelots_switch?
           self.switch_lancelots
         end
-        puts "="*80
-        puts self.lancelot_deck.inspect
-        puts "="*80
       end
     end
   end
@@ -654,12 +652,13 @@ end
 
 class Player
 
-  attr_accessor :loyalty, :user, :lancelot_switch
+  attr_accessor :loyalty, :user, :lancelot_switch, :ladied
 
   def initialize(user)
     self.user = user
     self.loyalty = nil
     self.lancelot_switch = false
+    self.ladied = false
   end 
 
   def switch_allegiance
@@ -670,6 +669,14 @@ class Player
 
   def receive_loyalty(loyalty)
     self.loyalty = loyalty
+  end
+
+  def lady!
+    self.ladied = true
+  end
+
+  def ladied?
+    self.ladied == true
   end
 
   def original_spy?

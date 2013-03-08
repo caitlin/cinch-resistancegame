@@ -599,6 +599,8 @@ module Cinch
             checking = @game.find_player(target)
             if checking.nil?
               User(m.user).send "\"#{target}\" is an invalid target."
+            elsif checking.ladied?
+              User(m.user).send "\"#{target}\" has already been checked."
             else
               Channel(@channel_name).send "#{m.user.nick} checks #{target} the Lady of the Lake."
               if checking.spy?
