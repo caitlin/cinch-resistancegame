@@ -154,9 +154,9 @@ class Game
   end
 
   def save_game(directory)
-    output = File.new("#{directory}/#{Time.now.to_s}", 'w')
-    output.puts YAML.dump(self)
-    output.close
+    #output = File.new("#{directory}/#{Time.now.to_s}", 'w')
+    #output.puts YAML.dump(self)
+    #output.close
   end
 
   def assign_loyalties
