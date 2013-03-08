@@ -39,6 +39,10 @@ module Cinch
       match /propose (.+)/i,     :method => :propose_team
       match /vote (.+)/i,        :method => :team_vote
       match /mission (.+)/i,     :method => :mission_vote
+      match /excalibur (.+)/i,   :method => :excalibur_use
+      match /xcal (.+)/i,        :method => :excalibur_use
+      match /sheathe/i,          :method => :excalibur_no
+      match /stay/i,             :method => :excalibur_no
       match /assassinate (.+)/i, :method => :assassinate_player
       match /kill (.+)/i,        :method => :assassinate_player
       match /lady (.+)/i,        :method => :lady_check
@@ -449,12 +453,16 @@ module Cinch
         end
       end
 
-      def propose_team(m, players)
-        if players != "confirm" 
+      def propose_team(m, team_members)
+        if team_members != "confirm" 
           # make sure the providing user is team leader 
           player_nicks = @game.players.map{|p| p.user.nick }
           if m.user == @game.team_leader.user
-            players = players.split(/[\s,]+/).map do |p| 
+            valid_team = false
+            players = []
+            players_with_xcal = []  
+            player_names = []
+            team_members.split(/[\s,]+/).each do |p| 
               fuzzy_matches = p.levenshtein_similar(player_nicks) # leve_matches
               # jaro_matches = p.jaro_similar(player_nicks)
               # fuzzy_matches = [jaro_matches,leve_matches].transpose.map {|x| x.reduce(:+)}
@@ -469,8 +477,13 @@ module Cinch
               else 
                 best_nick = p
               end
-              @game.find_player(User(best_nick)) || best_nick
-            end.uniq
+              player = @game.find_player(User(best_nick)) || best_nick
+              xcal = p.start_with?("+")
+              players_with_xcal << { :player => player, :xcal => xcal } 
+              players << player
+            end
+
+            players.uniq!
 
             non_players = players.dup.delete_if{ |p| p.is_a? Player }
             actual_players = players.dup.keep_if{ |p| p.is_a? Player }
@@ -485,10 +498,29 @@ module Cinch
               User(@game.team_leader.user).send "You have too many operatives on the team. You need #{@game.current_team_size}."
             # then we are okay
             else
+              if @game.variants.include?(:excalibur)
+                players_with_xcal.keep_if{ |px| px[:xcal] }
+                # none
+                if players_with_xcal.count == 0
+                  User(@game.team_leader.user).send "You must give Excalibur to someone."
+                # too many
+                elsif players_with_xcal.count > 1
+                  User(@game.team_leader.user).send "You can only give Excalibur to one operative."
+                # should only be one by this point
+                elsif players_with_xcal.first[:player].user == m.user
+                  User(@game.team_leader.user).send "You cannot give Excalibur to yourself."
+                else
+                  valid_team = true
+                  @game.current_round.team.give_excalibur_to(players_with_xcal.first[:player])
+                end
+              else
+                valid_team = true
+              end
+            end
+            if valid_team
               @game.make_team(actual_players)
               if @game.team_selected? # another safe check just because
-                proposed_team = @game.current_round.team.players.map(&:user).join(', ')
-                Channel(@channel_name).send "#{m.user.nick} is proposing the team: #{proposed_team}."
+                Channel(@channel_name).send "#{m.user.nick} is proposing the team: #{self.current_proposed_team}."
                 @game.current_round.team_proposed
               end
             end
@@ -498,17 +530,26 @@ module Cinch
         end
       end
 
+      def current_proposed_team
+        team = @game.current_round.team
+        team.players.map do |p|
+          if team.excalibur == p
+            exc = "+" 
+          end
+          "#{exc}#{p.user.nick}"
+        end.join(', ')
+      end
+
       def confirm_team(m)
         # make sure the providing user is team leader 
         if m.user == @game.team_leader.user
           if @game.team_selected?
             unless @game.current_round.in_vote_phase?
               @game.current_round.call_for_votes
-              proposed_team = @game.current_round.team.players.map(&:user).join(', ')
-              Channel(@channel_name).send "The proposed team: #{proposed_team}. Time to vote!"
+              Channel(@channel_name).send "The proposed team: #{self.current_proposed_team}. Time to vote!"
               @game.players.each do |p|
                 hammer_warning = (@game.current_round.hammer_team?) ? " This is your LAST chance at voting a team for this mission; if this team is not accepted, the Resistance loses." : ""
-                vote_prompt = "Time to vote! Vote whether or not you want the team (#{proposed_team}) to go on the mission or not. \"!vote yes\" or \"!vote no\".#{hammer_warning}"
+                vote_prompt = "Time to vote! Vote whether or not you want the team (#{self.current_proposed_team}) to go on the mission or not. \"!vote yes\" or \"!vote no\".#{hammer_warning}"
                 User(p.user).send vote_prompt
               end
             else
@@ -556,7 +597,11 @@ module Cinch
                 @game.vote_for_mission(m.user, vote)
                 User(m.user).send "You voted for the mission to '#{vote}'."
                 if @game.all_mission_votes_in?
-                  self.process_mission_votes
+                  if @game.variants.include?(:excalibur)
+                    self.prompt_for_excalibur
+                  else
+                    self.process_mission_votes
+                  end
                 end
               end
             else 
@@ -602,7 +647,7 @@ module Cinch
             elsif checking.ladied?
               User(m.user).send "\"#{target}\" has already been checked."
             else
-              Channel(@channel_name).send "#{m.user.nick} checks #{target} the Lady of the Lake."
+              Channel(@channel_name).send "#{m.user.nick} checks #{target} with the Lady of the Lake."
               if checking.spy?
                 User(m.user).send "#{target} is EVIL"
               else 
@@ -614,6 +659,36 @@ module Cinch
 
           else
             User(m.user).send "You do not have the Lady of the Lake."
+          end
+        end
+      end
+
+      def excalibur_use(m, target)
+        if @game.current_round.in_excalibur_phase?
+          if @game.current_round.excalibur_holder.user == m.user
+            excalibured = @game.find_player(target)
+            if excalibured.nil?
+              User(m.user).send "\"#{target}\" is an invalid target."
+            else
+              Channel(@channel_name).send "#{m.user.nick} uses Excalibur on #{target}."
+              old_vote = @game.current_round.switch_mission_vote_for(excalibured)
+              new_vote = @game.current_round.mission_vote_for(excalibured)
+              User(m.user).send "#{target} initially put in a #{old_vote.upcase}. You switched it to a #{new_vote.upcase}."
+              self.process_mission_votes
+            end
+          else
+            User(m.user).send "You do not hold Excalibur"
+          end
+        end
+      end
+
+      def excalibur_no(m)
+        if @game.current_round.in_excalibur_phase?
+          if @game.excalibur_holder.user == m.user
+            Channel(@channel_name).send "#{m.user.nick} chooses not to use Excalibur."
+            self.process_mission_votes
+          else
+            User(m.user).send "You do not hold Excalibur"
           end
         end
       end
@@ -811,6 +886,13 @@ module Cinch
           Channel(@channel_name).send "... the mission fails!"
         end
         self.check_game_state
+      end
+
+      def prompt_for_excalibur
+        @game.current_round.ask_for_excalibur
+        excalibur_holder = @game.current_round.excalibur_holder
+        Channel(@channel_name).send "EXCALIBUR: #{excalibur_holder.user.nick}, do you want to use Excalibur?"
+        User(excalibur_holder.user).send "You have Excalibur. You can use it on someone, \"!excalibur name\", or choose not to \"!sheath\""
       end
 
       def check_game_state
@@ -1030,6 +1112,7 @@ module Cinch
           settings[:variants] << "Lancelot #1" if @game.variants.include?(:lancelot1)
           settings[:variants] << "Lancelot #3" if @game.variants.include?(:lancelot3)
           settings[:variants] << "Lady of the Lake" if @game.variants.include?(:lady)
+          settings[:variants] << "Excalibur" if @game.variants.include?(:excalibur)
         else
           settings[:variants] = @game.variants.map{ |o| o.to_s.gsub("_", " ").titleize }
         end

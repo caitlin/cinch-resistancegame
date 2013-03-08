@@ -467,7 +467,7 @@ class Round
   attr_accessor :teams, :number, :mission_votes, :state, :lancelot_card  
 
   def initialize(number)
-    self.state           = :team_making # team_making, team_confirm, vote, mission, lady, (assassinate), end
+    self.state           = :team_making # team_making, team_confirm, vote, mission, excalibur, lady, (assassinate), end
     self.number          = number
     self.teams           = [Team.new]
     self.mission_votes   = {}
@@ -482,6 +482,10 @@ class Round
   # proxy for team team leader
   def team_leader
     self.team.team_leader
+  end
+
+  def excalibur_holder
+    self.team.excalibur
   end
 
   def lancelots_switch?
@@ -509,6 +513,16 @@ class Round
   end
 
   # Mission methods
+
+  def switch_mission_vote_for(player)
+    old_vote = self.mission_votes[player]
+    self.mission_votes[player] = ! old_vote
+    old_vote
+  end
+
+  def mission_vote_for(player)
+    self.mission_votes[player]
+  end
 
   def mission_success?
     mission_score = self.mission_fails
@@ -551,6 +565,10 @@ class Round
     self.state == :mission
   end
 
+  def in_excalibur_phase?
+    self.state == :excalibur
+  end
+
   def in_assassinate_phase?
     self.state == :assassinate
   end
@@ -580,6 +598,10 @@ class Round
     self.state = :mission
   end
 
+  def ask_for_excalibur
+    self.state = :excalibur
+  end
+
   def assassinate
     self.state = :assassinate
   end
@@ -602,12 +624,13 @@ end
 
 class Team
 
-  attr_accessor :team_leader, :players, :team_votes
+  attr_accessor :team_leader, :players, :team_votes, :excalibur
 
   def initialize
     self.team_leader = nil
     self.team_votes  = {}
     self.players     = []
+    self.excalibur   = nil
   end
 
   def assign_team_leader(player)
@@ -616,6 +639,10 @@ class Team
 
   def add_to_team(player)
     self.players << player
+  end
+
+  def give_excalibur_to(player)
+    self.excalibur = player
   end
 
   def clear_team
@@ -663,7 +690,7 @@ class Player
 
   def switch_allegiance
     if self.loyalty == :good_lancelot || self.loyalty == :evil_lancelot
-      self.lancelot_switch = (self.lancelot_switch == true ? false : true)
+      self.lancelot_switch = !self.lancelot_switch
     end
   end
 
