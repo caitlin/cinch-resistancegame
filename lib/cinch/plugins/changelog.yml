@@ -1,6 +1,7 @@
 - date: "2013-03-08"
   changes:
     - "Added Lancelots #1 and Lancelots #3"
+    - "Added Lady of the Lake"
     - "Changing game settings in PM now announces changer username"
     - "Game save back to yml format"
 - date: "2013-03-06"

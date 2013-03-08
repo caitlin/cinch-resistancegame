@@ -41,6 +41,7 @@ module Cinch
       match /mission (.+)/i,     :method => :mission_vote
       match /assassinate (.+)/i, :method => :assassinate_player
       match /kill (.+)/i,        :method => :assassinate_player
+      match /lady (.+)/i,        :method => :lady_check
 
       # helpers
       match /invite/i,               :method => :invite
@@ -55,7 +56,7 @@ module Cinch
       match /help ?(.+)?/i,          :method => :help
       match /intro/i,                :method => :intro
       match /rules ?(.+)?/i,         :method => :rules
-      match /settings$/i,            :method => :game_settings       
+      match /settings$/i,            :method => :get_game_settings       
       match /settings (base|avalon) ?(.+)?/i, :method => :set_game_settings
       match /changelog$/i,           :method => :changelog_dir
       match /changelog (\d+)/i,      :method => :changelog
@@ -417,7 +418,7 @@ module Cinch
               Channel(@channel_name).send "The game has started. #{self.get_game_info}"
 
               if @game.avalon? 
-                Channel(@channel_name).send "This is Resistance: Avalon, with #{@game.roles.map{ |r| r.to_s.gsub("_", " ").titleize }.join(", ")}."
+                Channel(@channel_name).send "This is Resistance: Avalon, with #{self.game_settings[:roles].join(", ")}. Using variants: #{self.game_settings[:variants].join(", ")}"
               end
               if @game.with_variant?(:blind_spies)
                 Channel(@channel_name).send "VARIANT: This is the Blind Spies variant. Spies do not reveal to each other."
@@ -433,6 +434,9 @@ module Cinch
               end
 
               Channel(@channel_name).send "Player order is: #{@game.players.map{ |p| p.user.nick }.join(' ')}"
+              if @game.variants.include?(:lady)
+                Channel(@channel_name).send "Lady of the Lake starts with #{@game.lady_token.user.nick}"
+              end
               Channel(@channel_name).send "MISSION #{@game.current_round.number}. Team Leader: #{@game.team_leader.user.nick}. Please choose a team of #{@game.current_team_size} to go on the first mission."
               User(@game.team_leader.user).send "You are team leader. Please choose a team of #{@game.current_team_size} to go on first mission. \"!team#{team_example(@game.current_team_size)}\""
               User(@game.team_leader.user).send "After you've chosen a team, \"!confirm\" to put it up for vote, or you can make a new team."
@@ -585,6 +589,29 @@ module Cinch
 
           else
             User(m.user).send "You are not the assassin."
+          end
+        end
+      end
+
+      def lady_check(m, target)
+        if @game.current_round.in_lady_phase?
+          if @game.lady_token.user == m.user
+            checking = @game.find_player(target)
+            if checking.nil?
+              User(m.user).send "\"#{target}\" is an invalid target."
+            else
+              Channel(@channel_name).send "#{m.user.nick} checks #{target} the Lady of the Lake."
+              if checking.spy?
+                User(m.user).send "#{target} is EVIL"
+              else 
+                User(m.user).send "#{target} is GOOD"
+              end
+              @game.give_lady_to(checking)
+              self.start_new_round
+            end
+
+          else
+            User(m.user).send "You do not have the Lady of the Lake."
           end
         end
       end
@@ -788,6 +815,10 @@ module Cinch
         Channel(@channel_name).send self.game_score
         if @game.is_over?
           self.do_end_game
+        elsif @game.is_lady_round?
+          @game.current_round.lady_time
+          Channel(@channel_name).send "LADY OF THE LAKE. #{@game.lady_token.user.nick}, choose someone to check."
+          User(@game.lady_token.user).send "You have Lady of the Lake. Please choose someone to check. \"!lady name\""
         else
           self.start_new_round
         end
@@ -950,13 +981,12 @@ module Cinch
       # Game Settings
       #--------------------------------------------------------------------------------
 
-      def game_settings(m)
-        if @game.type == :base
-          variants = @game.variants
-          with_variants = variants.empty? ? "" : " Using variant: #{variants.map{ |o| o.to_s.gsub("_", " ").capitalize }.join(", ")}"
+      def get_game_settings(m)
+        with_variants = @game.variants.empty? ? "" : " Using variants: #{self.game_settings[:variants].join(", ")}."
+        if @game.avalon?
+          m.reply "Game settings: Avalon. Using roles: #{self.game_settings[:roles].join(", ")}.#{with_variants}"
+        else
           m.reply "Game settings: Base.#{with_variants}"
-        elsif @game.type == :avalon
-          m.reply "Game settings: Avalon. Using roles: #{@game.roles.map(&:capitalize).join(", ")}."
         end
       end
 
@@ -968,20 +998,16 @@ module Cinch
           options = options.split(" ")
           if game_type.downcase == "avalon"
             valid_role_options    = ["percival", "mordred", "oberon", "morgana"]
-            valid_variant_options = ["lady_of_the_lake", "lancelot1", "lancelot3"]
+            valid_variant_options = ["lady", "lancelot1", "lancelot3", "excalibur"]
             role_options    = options.select{ |opt| valid_role_options.include?(opt.downcase) }
             variant_options = options.select{ |opt| valid_variant_options.include?(opt.downcase) }
             roles = ["merlin", "assassin"] + role_options
             if variant_options.include?("lancelot3") || variant_options.include?("lancelot1")
               roles.push("good_lancelot").push("evil_lancelot")
             end
+
             @game.change_type :avalon, :roles => roles, :variants => variant_options
-
-            variant_options = [] # for now
-            variant_options << "Lancelot #1" if @game.variants.include?(:lancelot1)
-            variant_options << "Lancelot #3" if @game.variants.include?(:lancelot3)
-
-            game_type_message = "#{game_change_prefix} to Avalon. Using roles: #{roles.map{ |r| r.gsub("_", " ").titleize }.join(", ")}."
+            game_type_message = "#{game_change_prefix} to Avalon. Using roles: #{self.game_settings[:roles].join(", ")}."
           else
             valid_variant_options = ["blind_spies"]
             variant_options = options.select{ |opt| valid_variant_options.include?(opt.downcase) }
@@ -989,10 +1015,25 @@ module Cinch
             @game.change_type :base, :variants => options
             game_type_message = "#{game_change_prefix} to base."
           end
-          with_variants = variant_options.empty? ? "" : " Using variant: #{variant_options.map{ |o| o.gsub("_", " ").titleize }.join(", ")}."
+          with_variants = self.game_settings[:variants].empty? ? "" : " Using variants: #{self.game_settings[:variants].join(", ")}."
           Channel(@channel_name).send "#{game_type_message}#{with_variants}"
         end
       end
+
+      def game_settings
+        settings = {}
+        settings[:roles] = @game.roles.map{ |r| r.to_s.gsub("_", " ").titleize }
+        settings[:variants] = []
+        if @game.avalon?
+          settings[:variants] << "Lancelot #1" if @game.variants.include?(:lancelot1)
+          settings[:variants] << "Lancelot #3" if @game.variants.include?(:lancelot3)
+          settings[:variants] << "Lady of the Lake" if @game.variants.include?(:lady)
+        else
+          settings[:variants] = @game.variants.map{ |o| o.to_s.gsub("_", " ").titleize }
+        end
+        settings
+      end
+
 
       #--------------------------------------------------------------------------------
       # Settings
@@ -1032,7 +1073,7 @@ end
 
 class String
   def titleize
-    split(/(\W)/).map(&:capitalize).join
+    split(/(\W)/).map{ |w| ["of", "the"].include?(w) ? w : w.capitalize }.join
   end
 end
 

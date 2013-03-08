@@ -28,7 +28,7 @@ class Game
       10 => { 1 => 3, 2 => 4, 3 => 4, 4 => 5, 5 => 5}
     }
 
-  attr_accessor :started, :players, :rounds, :type, :roles, :variants, :lancelot_deck, :invitation_sent, :time_start, :time_end
+  attr_accessor :started, :players, :rounds, :type, :roles, :variants, :lancelot_deck, :lady_token, :invitation_sent, :time_start, :time_end
   
   def initialize
     self.started         = false
@@ -41,6 +41,7 @@ class Game
     self.time_start      = nil
     self.time_end        = nil
     self.lancelot_deck   = []
+    self.lady_token      = nil
   end
 
   #----------------------------------------------
@@ -146,8 +147,9 @@ class Game
     self.make_lancelot_deck if self.variants.include?(:lancelot1)
     @current_round = Round.new(1)
     self.rounds << @current_round
-    self.players.shuffle.rotate!(rand(MAX_PLAYERS)) # shuffle seats
+    self.players.shuffle!.rotate!(rand(MAX_PLAYERS)) # shuffle seats
     self.assign_team_leader
+    self.give_lady_to(self.players.last) if self.variants.include?(:lady)
     $player_count = self.player_count
   end
 
@@ -215,14 +217,12 @@ class Game
     end
   end
 
+  # Avalon variants
+
   def make_lancelot_deck
     self.lancelot_deck << [:switch] * 2
     self.lancelot_deck << [:no_switch] * 3
-    self.lancelot_deck.flatten!.shuffle!
-    puts "="*80
-    puts lancelot_deck.inspect
-    puts "="*80
-    
+    self.lancelot_deck.flatten!.shuffle!    
   end
 
   def lancelots_switched?
@@ -234,6 +234,18 @@ class Game
     evil_lancelot = self.find_player_by_role(:evil_lancelot)
     good_lancelot.switch_allegiance
     evil_lancelot.switch_allegiance
+  end
+
+  def give_lady_to(player)
+    self.lady_token = player
+  end
+
+  def is_lady_round?
+    lady_round = false
+    if self.variants.include?(:lady) && [2,3,4].include?(@current_round.number)
+      lady_round = true
+    end
+    lady_round
   end
 
   # BUILDING TEAMS
@@ -457,7 +469,7 @@ class Round
   attr_accessor :teams, :number, :mission_votes, :state, :lancelot_card  
 
   def initialize(number)
-    self.state           = :team_making # team_making, team_confirm, vote, mission, assassinate, end
+    self.state           = :team_making # team_making, team_confirm, vote, mission, lady, (assassinate), end
     self.number          = number
     self.teams           = [Team.new]
     self.mission_votes   = {}
@@ -545,6 +557,10 @@ class Round
     self.state == :assassinate
   end
 
+  def in_lady_phase?
+    self.state == :lady
+  end
+
   def ended?
     self.state == :end
   end
@@ -568,6 +584,10 @@ class Round
 
   def assassinate
     self.state = :assassinate
+  end
+
+  def lady_time
+    self.state = :lady
   end
 
   def end_round
