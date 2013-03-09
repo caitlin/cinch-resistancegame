@@ -1079,12 +1079,12 @@ module Cinch
         unless @game.started?
           game_change_prefix = m.channel.nil? ? "#{m.user.nick} has changed the game" : "The game has been changed"
           options = game_options || ""
-          options = options.split(" ")
+          options = options.downcase.split(" ")
           if game_type.downcase == "avalon"
             valid_role_options    = ["percival", "mordred", "oberon", "morgana"]
             valid_variant_options = ["lady", "lancelot1", "lancelot3", "excalibur"]
-            role_options    = options.select{ |opt| valid_role_options.include?(opt.downcase) }
-            variant_options = options.select{ |opt| valid_variant_options.include?(opt.downcase) }
+            role_options    = options.select{ |opt| valid_role_options.include?(opt) }
+            variant_options = options.select{ |opt| valid_variant_options.include?(opt) }
             roles = ["merlin", "assassin"] + role_options
             if variant_options.include?("lancelot3") || variant_options.include?("lancelot1")
               roles.push("good_lancelot").push("evil_lancelot")
