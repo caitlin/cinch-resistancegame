@@ -844,7 +844,7 @@ module Cinch
           end
         else
           @game.try_making_team_again
-          Channel(@channel_name).send "This team is NOT going on the mission. Fail count: #{@game.current_round.fail_count}"
+          Channel(@channel_name).send "This team is NOT going on the mission. Reject count: #{@game.current_round.fail_count}"
           if @game.current_round.too_many_fails?
             self.do_end_game
           else
