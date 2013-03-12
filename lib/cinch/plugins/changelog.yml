@@ -1,6 +1,7 @@
 - date: "2013-03-12"
   changes:
     - "Changed \"Fail count\" to \"Reject count\""
+    - "Added team leader to \"Time to Vote\" PM"
 - date: "2013-03-08"
   changes:
     - "Added Lancelots #1 and Lancelots #3"

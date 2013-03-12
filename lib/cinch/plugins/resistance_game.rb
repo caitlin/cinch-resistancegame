@@ -549,7 +549,7 @@ module Cinch
               Channel(@channel_name).send "The proposed team: #{self.current_proposed_team}. Time to vote!"
               @game.players.each do |p|
                 hammer_warning = (@game.current_round.hammer_team?) ? " This is your LAST chance at voting a team for this mission; if this team is not accepted, the Resistance loses." : ""
-                vote_prompt = "Time to vote! Vote whether or not you want the team (#{self.current_proposed_team}) to go on the mission or not. \"!vote yes\" or \"!vote no\".#{hammer_warning}"
+                vote_prompt = "Time to vote! Vote whether or not you want #{@game.team_leader.user}'s team (#{self.current_proposed_team}) to go on the mission or not. \"!vote yes\" or \"!vote no\".#{hammer_warning}"
                 User(p.user).send vote_prompt
               end
             else
