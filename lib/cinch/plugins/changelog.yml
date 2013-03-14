@@ -1,7 +1,16 @@
+- date: "2013-03-13"
+  changes:
+    - "Added Excalibur"
 - date: "2013-03-12"
   changes:
     - "Changed \"Fail count\" to \"Reject count\""
     - "Added team leader to \"Time to Vote\" PM"
+- date: "2013-03-13"
+  changes:
+    - "Added Excalibur"
+- date: "2013-03-10"
+  changes:
+    - "Added Lady to the avroles"
 - date: "2013-03-08"
   changes:
     - "Added Lancelots #1 and Lancelots #3"

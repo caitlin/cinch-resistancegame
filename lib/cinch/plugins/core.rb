@@ -327,7 +327,6 @@ class Game
   end
 
   # NEXT ROUND
-
   def check_game_state
     if self.started?
       if @current_round.in_team_making_phase?
@@ -339,6 +338,10 @@ class Game
         status = "Waiting on players to vote: #{self.not_voted.map(&:user).join(", ")}"
       elsif @current_round.in_mission_phase?
         status = "Waiting on players to return from the mission: #{self.not_back_from_mission.map(&:user).join(", ")}"
+      elsif @current_round.in_excalibur_phase?
+        status = "Waiting on #{self.current_round.excalibur_holder} to choose to use Excalibur or not"
+      elsif @current_round.in_lady_phase?
+        status = "Waiting on #{self.lady_token} to choose someone to examine with Lady of the Lake"
       elsif @current_round.in_assassinate_phase?
         status = "Waiting on the assassin to choose a target"
       end
@@ -464,7 +467,7 @@ end
 
 class Round
 
-  attr_accessor :teams, :number, :mission_votes, :state, :lancelot_card  
+  attr_accessor :teams, :number, :mission_votes, :state, :excalibured, :lancelot_card  
 
   def initialize(number)
     self.state           = :team_making # team_making, team_confirm, vote, mission, excalibur, lady, (assassinate), end
@@ -472,6 +475,7 @@ class Round
     self.teams           = [Team.new]
     self.mission_votes   = {}
     self.lancelot_card   = nil
+    self.excalibured     = nil
   end
 
   # the current round team is the last team
@@ -514,10 +518,14 @@ class Round
 
   # Mission methods
 
-  def switch_mission_vote_for(player)
+  def use_excalibur_on(player)
+    self.excalibured = player
     old_vote = self.mission_votes[player]
-    self.mission_votes[player] = ! old_vote
-    old_vote
+    if old_vote == 'fail'
+      self.mission_votes[player] = 'pass' 
+    elsif old_vote == 'pass'
+      self.mission_votes[player] = 'fail'
+    end
   end
 
   def mission_vote_for(player)
@@ -631,6 +639,10 @@ class Team
     self.team_votes  = {}
     self.players     = []
     self.excalibur   = nil
+  end
+
+  def has_player?(player)
+    self.players.include?(player)
   end
 
   def assign_team_leader(player)

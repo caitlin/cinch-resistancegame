@@ -41,7 +41,7 @@ module Cinch
       match /mission (.+)/i,     :method => :mission_vote
       match /excalibur (.+)/i,   :method => :excalibur_use
       match /xcal (.+)/i,        :method => :excalibur_use
-      match /sheathe/i,          :method => :excalibur_no
+      match /sheath/i,           :method => :excalibur_no
       match /stay/i,             :method => :excalibur_no
       match /assassinate (.+)/i, :method => :assassinate_player
       match /kill (.+)/i,        :method => :assassinate_player
@@ -179,6 +179,7 @@ module Cinch
           User(m.user).send "Mordred is a Spy. The other Spies know he is a Spy but do not know that he is Mordred. Merlin is unable to identify him, which means he doesn't have full information on all the Spies. (Merlin will see one fewer spies than are in the game)"
           User(m.user).send "Oberon is a Spy. However, he doesn't know who his fellow Spies are, and they do not know him, either.  (The other Spies will see one fewer Spies than are in the game). Merlin can identify Oberon as a Spy."
           User(m.user).send "Morgana is a Spy. Percival must be in the game to use Morgana. The other Spies know her as a Spy, as does Merlin, but none of them know her identity as Morgana.  However, Morgana's magic allows her to appear to Percival as if she were Merlin.  Percival will see two people claiming to be Merlin. He will know one is Resistance, the other a Spy. But he will not know for sure whose votes and conversation to trust."
+          User(m.user).send "Lady of the Lake is a token given to a player that allows them to look at the loyalty of another player. Immediately after Quests 2, 3, and 4, the player with the Lady token will choose one player to examine. The player being examined then receives the Lady of the Lake token for the following round. A player that used Lady of the Lake token cannot have the Lady used on them."
         when "teamsizes"
           User(m.user).send "Team sizes are as follows:"
           User(m.user).send "5 players: 2, 3, 2, 3, 3"
@@ -247,10 +248,15 @@ module Cinch
               else
                 mission_result = "FAILED (#{prev_round.mission_fails})"
               end
+              if @game.variants.include?(:excalibur)
+                unless prev_round.excalibured.nil?
+                  mission_result += " - #{prev_round.excalibur_holder.user.nick} xCals #{prev_round.excalibured.user.nick}"
+                end
+              end
             else
               mission_result = "AWAY ON MISSION"
             end
-            m.reply "MISSION #{number} - Leader: #{dehighlight_nick(prev_round.team_leader.user.nick)} - Team: #{team.players.map{ |p| dehighlight_nick(p.user.nick) }.join(', ')} - #{mission_result}"
+            m.reply "MISSION #{number} - Leader: #{dehighlight_nick(prev_round.team_leader.user.nick)} - Team: #{format_team(team, true)} - #{mission_result}"
           else
             #m.reply "A team hasn't been made for that round yet."
           end
@@ -269,13 +275,21 @@ module Cinch
           teams.each_with_index do |team, i|
             went_team = team.team_makes? ? " - MISSION" : ""
             if team.team_votes.length == @game.players.length # this should probably be a method somewhere?
-              m.reply "Team #{i+1} - Leader: #{dehighlight_nick(team.team_leader.user.nick)} - Team: #{team.players.map{ |p| dehighlight_nick(p.user.nick) }.join(', ')} - Votes: #{self.format_votes(team.team_votes, true)}#{went_team}"
+              m.reply "Team #{i+1} - Leader: #{dehighlight_nick(team.team_leader.user.nick)} - Team: #{format_team(team, true)} - Votes: #{self.format_votes(team.team_votes, true)}#{went_team}"
             elsif i == 0
               m.reply "No teams have been voted on yet."
             end
           end
           if prev_round.ended? || @game.current_round.in_assassinate_phase?
-            m.reply "RESULT: #{prev_round.mission_success? ? "PASSED" : "FAILED (#{prev_round.mission_fails})"}"
+            xcal_result = ""
+            if @game.variants.include?(:excalibur)
+              if prev_round.excalibured.nil?
+                xcal_result = " - Excalibur not used"
+              else 
+                xcal_result = " - Excalibur used on #{prev_round.excalibured.user.nick}"
+              end
+            end
+            m.reply "RESULT: #{prev_round.mission_success? ? "PASSED" : "FAILED (#{prev_round.mission_fails})"}#{xcal_result}"
           end
         end
       end
@@ -531,12 +545,15 @@ module Cinch
       end
 
       def current_proposed_team
-        team = @game.current_round.team
+        format_team @game.current_round.team
+      end
+
+      def format_team(team, dehighlight = false)
         team.players.map do |p|
           if team.excalibur == p
             exc = "+" 
           end
-          "#{exc}#{p.user.nick}"
+          "#{exc}#{dehighlight ? dehighlight_nick(p.user.nick) : p.user.nick}"
         end.join(', ')
       end
 
@@ -669,9 +686,12 @@ module Cinch
             excalibured = @game.find_player(target)
             if excalibured.nil?
               User(m.user).send "\"#{target}\" is an invalid target."
+            elsif ! @game.current_round.team.has_player?(excalibured)
+              User(m.user).send "#{target} was not on the mission."
             else
               Channel(@channel_name).send "#{m.user.nick} uses Excalibur on #{target}."
-              old_vote = @game.current_round.switch_mission_vote_for(excalibured)
+              old_vote = @game.current_round.mission_vote_for(excalibured)
+              @game.current_round.use_excalibur_on(excalibured)
               new_vote = @game.current_round.mission_vote_for(excalibured)
               User(m.user).send "#{target} initially put in a #{old_vote.upcase}. You switched it to a #{new_vote.upcase}."
               self.process_mission_votes
@@ -684,7 +704,7 @@ module Cinch
 
       def excalibur_no(m)
         if @game.current_round.in_excalibur_phase?
-          if @game.excalibur_holder.user == m.user
+          if @game.current_round.excalibur_holder.user == m.user
             Channel(@channel_name).send "#{m.user.nick} chooses not to use Excalibur."
             self.process_mission_votes
           else
@@ -787,10 +807,10 @@ module Cinch
       def get_loyalty_info
         if @game.type == :avalon
           spies = @game.spies.sort_by{|s| s.loyalty}.map do |s|
-            "#{s.user.nick}" + (s.loyalty != :spy ? " (#{s.loyalty.to_s.titleize})" : "" )
+            "#{s.user.nick}" + (s.loyalty != :spy ? " (#{s.loyalty.to_s.gsub("_"," ").titleize})" : "" )
           end
           resistance = @game.resistance.sort_by{|r| r.loyalty}.map do |r|
-            "#{r.user.nick}" + (r.loyalty != :resistance ? " (#{r.loyalty.to_s.titleize})" : "" )
+            "#{r.user.nick}" + (r.loyalty != :resistance ? " (#{r.loyalty.to_s.gsub("_"," ").titleize})" : "" )
           end          
         else
           spies = @game.spies.map{ |s| s.user.nick }
@@ -827,7 +847,7 @@ module Cinch
 
       def process_team_votes
         # reveal the votes
-        Channel(@channel_name).send "The votes are in for the team: #{@game.current_round.team.players.map(&:user).join(', ')}"
+        Channel(@channel_name).send "The votes are in for the team: #{format_team(@game.current_round.team)}"
         Channel(@channel_name).send self.format_votes(@game.current_round.team.team_votes, false)
 
         # determine if team makes
