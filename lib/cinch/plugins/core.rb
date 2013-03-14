@@ -339,9 +339,9 @@ class Game
       elsif @current_round.in_mission_phase?
         status = "Waiting on players to return from the mission: #{self.not_back_from_mission.map(&:user).join(", ")}"
       elsif @current_round.in_excalibur_phase?
-        status = "Waiting on #{self.current_round.excalibur_holder} to choose to use Excalibur or not"
+        status = "Waiting on #{self.current_round.excalibur_holder.user.nick} to choose to use Excalibur or not"
       elsif @current_round.in_lady_phase?
-        status = "Waiting on #{self.lady_token} to choose someone to examine with Lady of the Lake"
+        status = "Waiting on #{self.lady_token.user.nick} to choose someone to examine with Lady of the Lake"
       elsif @current_round.in_assassinate_phase?
         status = "Waiting on the assassin to choose a target"
       end
