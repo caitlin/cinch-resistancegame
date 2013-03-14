@@ -492,7 +492,7 @@ module Cinch
                 best_nick = p
               end
               player = @game.find_player(User(best_nick)) || best_nick
-              xcal = p.start_with?("+")
+              xcal = p.end_with?("+")
               players_with_xcal << { :player => player, :xcal => xcal } 
               players << player
             end
