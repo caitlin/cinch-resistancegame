@@ -301,7 +301,32 @@ module Cinch
       end
 
       def status(m)
-        m.reply @game.check_game_state
+        if @game.started?
+          current_round = @game.current_round
+          if current_round.in_team_making_phase?
+            status = "Waiting on #{@game.team_leader.user} to propose a team of #{@game.current_team_size}"
+          elsif current_round.in_team_proposed_phase?
+            status = "Team proposed: #{self.current_proposed_team} - Waiting on #{@game.team_leader.user} to confirm or choose a new team"
+          elsif current_round.in_vote_phase?
+            status = "Waiting on players to vote: #{@game.not_voted.map(&:user).join(", ")}"
+          elsif current_round.in_mission_phase?
+            status = "Waiting on players to return from the mission: #{@game.not_back_from_mission.map(&:user).join(", ")}"
+          elsif current_round.in_excalibur_phase?
+            status = "Waiting on #{@game.current_round.excalibur_holder.user.nick} to choose to use Excalibur or not"
+          elsif current_round.in_lady_phase?
+            status = "Waiting on #{@game.lady_token.user.nick} to choose someone to examine with Lady of the Lake"
+          elsif current_round.in_assassinate_phase?
+            status = "Waiting on the assassin to choose a target"
+          end
+        else
+          if @game.player_count.zero?
+            status = "No game in progress."
+          else
+            status = "A game is forming. #{@game.player_count} players have joined: #{@game.players.map(&:user).join(", ")}"
+          end
+        end
+
+        m.reply status
       end
 
       def changelog_dir(m)
@@ -492,7 +517,7 @@ module Cinch
                 best_nick = p
               end
               player = @game.find_player(User(best_nick)) || best_nick
-              xcal = p.end_with?("+")
+              xcal = p.end_with?("+") || p.start_with?("+")
               players_with_xcal << { :player => player, :xcal => xcal } 
               players << player
             end
