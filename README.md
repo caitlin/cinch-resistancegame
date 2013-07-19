@@ -1,4 +1,4 @@
-# Cinch-BGG - BoardGameGeek plugin
+# Cinch-ResistanceGame - The Resistance plugin
 
 ## Description
 
