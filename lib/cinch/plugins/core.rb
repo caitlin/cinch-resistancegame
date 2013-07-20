@@ -124,6 +124,10 @@ class Game
     self.variants.include?(variant)
   end
 
+  def with_role?(role)
+    self.roles.include?(role)
+  end
+
   def mark_invitation_sent
     self.invitation_sent = true
   end

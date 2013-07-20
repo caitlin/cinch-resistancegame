@@ -280,7 +280,7 @@ module Cinch
               m.reply "No teams have been voted on yet."
             end
           end
-          if prev_round.ended? || @game.current_round.in_assassinate_phase?
+          if prev_round.ended? || @game.current_round.in_assassinate_phase? || @game.current_round.in_lady_phase?
             xcal_result = ""
             if @game.variants.include?(:excalibur)
               if prev_round.excalibured.nil?
@@ -766,40 +766,63 @@ module Cinch
           spies = @game.original_spies
 
           # if player is a spy, they can see other spies, but not oberon if he's in play
-          if player.spy?
-            other_spies = spies.reject{ |s| s.role?(:oberon) || s == player }.map{ |s| s.user.nick }
+          other_spies = player.spy? ? (spies.reject{ |s| s.role?(:oberon) || s == player }) : []
+
+          if @game.variants.include?(:lancelot1)
+            evil_lancelot = @game.find_player_by_role(:evil_lancelot)
+            show_evil_lance = "Evil Lancelot is: #{evil_lancelot.user.nick}."
           end
-        
+
+          # build info for the spies
+          spy_info = ""
+
+          unless other_spies.empty?
+            other_spies = other_spies.map do |s| 
+              s.role?(:evil_lancelot) ? "#{s.user.nick} (Evil Lancelot)" : s.user.nick
+            end.join(', ')
+            spy_info << "The other spies are:#{other_spies}."
+          end
+          # if playing with oberon, notify spies they are missing one spy in their info
+          if oberon_note = @game.with_role?(:oberon) 
+            spy_info << " Oberon is a spy, but does not reveal to you and does not know who the other spies are."
+          end
+
+
           # here we goooo...
           if player.role?(:merlin)
             # sees spies minus mordred
             spies_minus_mordred = spies.reject{ |s| s.role?(:mordred) }.map{ |s| s.user.nick }
-            loyalty_msg = "You are MERLIN (resistance). Don't let the spies learn who you are. The spies are: #{spies_minus_mordred.join(', ')}. "
+            missing = @game.roles.include?(:mordred) ? " You don't see Mordred." : ""
+            loyalty_msg = "You are MERLIN (resistance). Don't let the spies learn who you are. The spies are: #{spies_minus_mordred.join(', ')}.#{missing}"
           elsif player.role?(:assassin)
-            loyalty_msg = "You are THE ASSASSIN (spy). Try to figure out who Merlin is. The other spies are: #{other_spies.join(', ')}."
+            loyalty_msg = "You are THE ASSASSIN (spy). Try to figure out who Merlin is.#{spy_info}"
           elsif player.role?(:percival)
             # sees merlin (and morgana)
             merlin = @game.find_player_by_role(:merlin)
             morgana = @game.find_player_by_role(:morgana)
-            revealed_to_percival = ( morgana.nil? ? [merlin] : [merlin, morgana].shuffle )
-            revealed_to_percival_names = revealed_to_percival.map!{ |s| s.user.nick }
-            loyalty_msg = "You are PERCIVAL (resistance). Help protect Merlin's identity. Merlin is: #{revealed_to_percival_names.join(', ')}."
+            if morgana.nil?
+              percy_info = "Merlin is: #{merlin.user.nick}."
+            else
+              revealed_to_percival_names = [merlin, morgana].shuffle.map{ |s| s.user.nick }
+              percy_info = "Between #{revealed_to_percival_names.join(' and ')}, there is Merlin and Morgana."
+            end
+            loyalty_msg = "You are PERCIVAL (resistance). Help protect Merlin's identity.#{percy_info}"
           elsif player.role?(:good_lancelot)
             evil_lancelot = @game.find_player_by_role(:evil_lancelot)
             show_other = @game.variants.include?(:lancelot3) ? "Evil Lancelot is: #{evil_lancelot.user.nick}." : ""
             loyalty_msg = "You are GOOD LANCELOT (resistance).#{show_other}"
           elsif player.role?(:evil_lancelot)
             good_lancelot = @game.find_player_by_role(:good_lancelot)
-            show_other = @game.variants.include?(:lancelot3) ? "Good Lancelot is: #{good_lancelot.user.nick}. The other spies are: #{other_spies.join(', ')}." : ""
+            show_other = @game.variants.include?(:lancelot3) ? "Good Lancelot is: #{good_lancelot.user.nick}.#{spy_info}" : ""
             loyalty_msg = "You are EVIL LANCELOT (spy).#{show_other}"
           elsif player.role?(:mordred)
-            loyalty_msg = "You are MORDRED (spy). You didn't reveal yourself to Merlin. The other spies are: #{other_spies.join(', ')}."
+            loyalty_msg = "You are MORDRED (spy). You didn't reveal yourself to Merlin.#{spy_info}"
           elsif player.role?(:oberon)
             loyalty_msg = "You are OBERON (spy). You are a bad guy, but you don't reveal to them and they don't reveal to you."
           elsif player.role?(:morgana)
-            loyalty_msg = "You are MORGANA (spy). You revealed yourself as Merlin to Percival. The other spies are: #{other_spies.join(', ')}."
+            loyalty_msg = "You are MORGANA (spy). You revealed yourself as Merlin to Percival.#{spy_info}"
           elsif player.role?(:spy)
-            loyalty_msg = "You are A SPY. The other spies are: #{other_spies.join(', ')}."
+            loyalty_msg = "You are A SPY.#{spy_info}"
           elsif player.role?(:resistance)
             loyalty_msg = "You are a member of the RESISTANCE."
           else
@@ -868,6 +891,11 @@ module Cinch
         two_fail_warning = (@game.current_round.special_round?) ? " This mission requires TWO FAILS for the spies." : ""
         Channel(@channel_name).send "MISSION #{@game.current_round.number}. Team Leader: #{@game.team_leader.user.nick}. Please choose a team of #{@game.current_team_size} to go on the mission.#{two_fail_warning}"
         User(@game.team_leader.user).send "You are team leader. Please choose a team of #{@game.current_team_size} to go on the mission. \"!team#{team_example(@game.current_team_size)}\""
+      end
+
+      def team_leader_prompt
+        excalibur_instructions = @game.with_variant?(:excalibur) ? " You must give Excalibur to someone other than yourself; indicate your choice with a + symbol before or after that player's name." : ""
+        prompt = "You are team leader. Please choose a team of #{@game.current_team_size} to go on the mission. \"!team#{team_example(@game.current_team_size)}\".#{excalibur_instructions}"
       end
 
       def process_team_votes
@@ -1138,10 +1166,10 @@ module Cinch
             @game.change_type :avalon, :roles => roles, :variants => variant_options
             game_type_message = "#{game_change_prefix} to Avalon. Using roles: #{self.game_settings[:roles].join(", ")}."
           else
-            valid_variant_options = ["blind_spies"]
+            valid_variant_options = ["blind_spies", "lady", "excalibur"]
             variant_options = options.select{ |opt| valid_variant_options.include?(opt.downcase) }
             
-            @game.change_type :base, :variants => options
+            @game.change_type :base, :variants => variant_options
             game_type_message = "#{game_change_prefix} to base."
           end
           with_variants = self.game_settings[:variants].empty? ? "" : " Using variants: #{self.game_settings[:variants].join(", ")}."
