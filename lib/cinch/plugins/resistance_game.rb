@@ -780,7 +780,7 @@ module Cinch
             other_spies = other_spies.map do |s| 
               s.role?(:evil_lancelot) ? "#{s.user.nick} (Evil Lancelot)" : s.user.nick
             end.join(', ')
-            spy_info << "The other spies are:#{other_spies}."
+            spy_info << " The other spies are: #{other_spies}."
           end
           # if playing with oberon, notify spies they are missing one spy in their info
           if oberon_note = @game.with_role?(:oberon) 
@@ -792,7 +792,7 @@ module Cinch
           if player.role?(:merlin)
             # sees spies minus mordred
             spies_minus_mordred = spies.reject{ |s| s.role?(:mordred) }.map{ |s| s.user.nick }
-            missing = @game.roles.include?(:mordred) ? " You don't see Mordred." : ""
+            missing = @game.with_role?(:mordred) ? " You don't see Mordred." : ""
             loyalty_msg = "You are MERLIN (resistance). Don't let the spies learn who you are. The spies are: #{spies_minus_mordred.join(', ')}.#{missing}"
           elsif player.role?(:assassin)
             loyalty_msg = "You are THE ASSASSIN (spy). Try to figure out who Merlin is.#{spy_info}"
@@ -993,7 +993,7 @@ module Cinch
             @game.assassinate
             assassin = @game.find_player_by_role(:assassin)
             Channel(@channel_name).send "The resistance successfully completed the missions, but the spies still have a chance."
-            Channel(@channel_name).send "The spies are: #{spies.join(", ")}. Assassin, choose a resistance member to assassinate."
+            Channel(@channel_name).send "The Assassin is: #{assassin.user.nick}. Choose a rebel to assassinate."
             User(assassin.user).send "You are the assassin, and it's time to assassinate one of the resistance. \"!assassinate name\""
           else
             Channel(@channel_name).send "Game is over! The resistance wins!"

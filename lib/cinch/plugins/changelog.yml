@@ -1,9 +1,10 @@
-- date: "2013-07-18"
+- date: "2013-07-20"
   changes:
     - "More information Avalon role messages"
     - "!missions shows current mission while waiting for lady to happen"
     - "Fixed issues around game settings"
     - "Excalibur instructions"
+    - "Assassin is the only revealed spy role during assassination phase"
 - date: "2013-03-13"
   changes:
     - "Added Excalibur"
