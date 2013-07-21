@@ -2,7 +2,10 @@ require 'cinch'
 require 'yaml'
 require 'amatch'
 
-require File.expand_path(File.dirname(__FILE__)) + '/core'
+require File.expand_path(File.dirname(__FILE__)) + '/core/game.rb'
+require File.expand_path(File.dirname(__FILE__)) + '/core/round.rb'
+require File.expand_path(File.dirname(__FILE__)) + '/core/team.rb'
+require File.expand_path(File.dirname(__FILE__)) + '/core/player.rb'
 
 module Cinch
   module Plugins
