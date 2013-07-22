@@ -455,6 +455,7 @@ class Game
     @current_round.assassinate
   end
 
+  
 end
 
 

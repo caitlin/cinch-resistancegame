@@ -673,6 +673,7 @@ module Cinch
               else 
                 Channel(@channel_name).send "The assassin kills #{killed.user.nick}. The spies have NOT killed Merlin. Resistance wins!"
               end
+              Channel(@channel_name).send "The spies were: #{spies.join(", ")}"
               Channel(@channel_name).send "The resistance were: #{resistance.join(", ")}."
               self.start_new_game
             end
