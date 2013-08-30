@@ -25,7 +25,7 @@ Here's an example of what your *bot.rb* might look like:
           Cinch::Plugins::Identify
         ]
         c.plugins.options[Cinch::Plugins::ResistanceGame] = {
-          :mods     => ["caitlinface", "timotab", "JohnnyWarpzone", "Chank"],
+          :mods     => ["caitlinface", "Chank"],
           :channel  => "#playresistance",
           :settings => "settings.yml"
         }
