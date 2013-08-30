@@ -60,6 +60,8 @@ module Cinch
       match /info/i,                 :method => :game_info
       match /status/i,               :method => :status
       match /whoami/i,               :method => :whoami
+      match /lance/i,                :method => :lancelot_info
+
       match /help ?(.+)?/i,          :method => :help
       match /intro/i,                :method => :intro
       match /rules ?(.+)?/i,         :method => :rules
@@ -890,6 +892,16 @@ module Cinch
         two_fail_warning = (@game.current_round.special_round?) ? " This mission requires TWO FAILS for the spies." : ""
         Channel(@channel_name).send "MISSION #{@game.current_round.number}. Team Leader: #{@game.team_leader.user.nick}. Please choose a team of #{@game.current_team_size} to go on the mission.#{two_fail_warning}"
         User(@game.team_leader.user).send "You are team leader. Please choose a team of #{@game.current_team_size} to go on the mission. \"!team#{team_example(@game.current_team_size)}\""
+      end
+
+      def lancelot_info(m)
+        return unless @game.started?
+        msg = "Lancelots currently follow their " + (@game.lancelots_switched? ? "opposite" : "original") + " allegiance."
+        if @game.with_variant?(:lancelot2)
+          rounds_left = 5 - @game.current_round.number
+          msg += " Lancelot changes sides in the upcoming rounds: " + format_lancelot_deck(rounds_left)
+        end
+        m.reply(msg)
       end
 
       def format_lancelot_deck(num = 5)
