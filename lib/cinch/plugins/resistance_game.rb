@@ -472,6 +472,10 @@ module Cinch
               if @game.with_variant?(:lancelot1)
                 Channel(@channel_name).send "VARIANT: This is the Lancelot #1 variant. Lancelots will switch 0, 1, or 2 times, starting at the beginning of Mission 3. Evil Lancelot does not know other spies."
               end
+              if @game.with_variant?(:lancelot2)
+                Channel(@channel_name).send "VARIANT: This is the Lancelot #2 variant. Lancelots will switch 0, 1, or 2 times at times known in advance. The currently-evil Lancelot MUST fail missions he is on. Evil Lancelot does not know other spies."
+                Channel(@channel_name).send "LANCELOT CHANGES SIDES: " + self.format_lancelot_deck
+              end
               if @game.with_variant?(:lancelot3)
                 Channel(@channel_name).send "VARIANT: This is the Lancelot #3 variant. Lancelots have revealed to each other."
               end
@@ -483,6 +487,12 @@ module Cinch
               if @game.variants.include?(:lady)
                 Channel(@channel_name).send "Lady of the Lake starts with #{@game.lady_token.user.nick}"
               end
+
+              if @game.variants.include?(:lancelot2)
+                @game.play_lancelot_card
+                self.show_lancelot_card
+              end
+
               Channel(@channel_name).send "MISSION #{@game.current_round.number}. Team Leader: #{@game.team_leader.user.nick}. Please choose a team of #{@game.current_team_size} to go on the first mission."
               User(@game.team_leader.user).send "You are team leader. Please choose a team of #{@game.current_team_size} to go on first mission. \"!team#{team_example(@game.current_team_size)}\""
               User(@game.team_leader.user).send "After you've chosen a team, \"!confirm\" to put it up for vote, or you can make a new team."
@@ -629,7 +639,9 @@ module Cinch
       def mission_vote(m, vote)
         if @game.current_round.in_mission_phase?
           player = @game.find_player(m.user)
-          if player.spy?
+          if @game.with_variant?(:lancelot2) && player.currently_evil_lancelot?
+            valid_options = ['fail']
+          elsif player.spy?
             valid_options = ['pass', 'fail']
           else
             valid_options = ['pass']
@@ -772,7 +784,7 @@ module Cinch
           # if player is a spy, they can see other spies, but not oberon if he's in play
           other_spies = player.spy? ? (spies.reject{ |s| s.role?(:oberon) || s == player }) : []
 
-          if @game.variants.include?(:lancelot1)
+          if @game.variants.include?(:lancelot1) || @game.variants.include?(:lancelot2)
             evil_lancelot = @game.find_player_by_role(:evil_lancelot)
             show_evil_lance = "Evil Lancelot is: #{evil_lancelot.user.nick}."
           end
@@ -880,6 +892,21 @@ module Cinch
         User(@game.team_leader.user).send "You are team leader. Please choose a team of #{@game.current_team_size} to go on the mission. \"!team#{team_example(@game.current_team_size)}\""
       end
 
+      def format_lancelot_deck(num = 5)
+        # play_lancelot_card uses pop, which takes out the LAST element of an array.
+        # To show the lancelot deck in the right order we must reverse!
+        @game.lancelot_deck.reverse.take(num).map { |c|
+          case c
+          when :switch
+            "YES"
+          when :no_switch
+            "NO"
+          else
+            "???"
+          end
+        }.join(", ")
+      end
+
       def show_lancelot_card
         return if @game.current_round.lancelot_card.nil?
 
@@ -917,7 +944,9 @@ module Cinch
           @game.go_on_mission
           Channel(@channel_name).send "This team is going on the mission!"
           @game.current_round.team.players.each do |p|
-            if p.spy?
+            if @game.with_variant?(:lancelot2) && p.currently_evil_lancelot?
+              mission_prompt = 'Mission time! Since you are the currently-evil Lancelot, you can only choose to FAIL the mission. "!mission fail"'
+            elsif p.spy?
               mission_prompt = 'Mission time! Since you are a spy, you have the option to PASS or FAIL the mission. "!mission pass" or "!mission fail"'
             else
               mission_prompt = 'Mission time! Since you are resistance, you can only choose to PASS the mission. "!mission pass"'
@@ -1164,11 +1193,11 @@ module Cinch
           options = options.downcase.split(" ")
           if game_type.downcase == "avalon"
             valid_role_options    = ["percival", "mordred", "oberon", "morgana"]
-            valid_variant_options = ["lady", "lancelot1", "lancelot3", "excalibur"]
+            valid_variant_options = ["lady", "lancelot1", "lancelot2", "lancelot3", "excalibur"]
             role_options    = options.select{ |opt| valid_role_options.include?(opt) }
             variant_options = options.select{ |opt| valid_variant_options.include?(opt) }
             roles = ["merlin", "assassin"] + role_options
-            if variant_options.include?("lancelot3") || variant_options.include?("lancelot1")
+            if variant_options.include?("lancelot1") || variant_options.include?("lancelot2") || variant_options.include?("lancelot3")
               roles.push("good_lancelot").push("evil_lancelot")
             end
 
@@ -1192,6 +1221,7 @@ module Cinch
         settings[:variants] = []
         if @game.avalon?
           settings[:variants] << "Lancelot #1" if @game.variants.include?(:lancelot1)
+          settings[:variants] << "Lancelot #2" if @game.variants.include?(:lancelot2)
           settings[:variants] << "Lancelot #3" if @game.variants.include?(:lancelot3)
           settings[:variants] << "Lady of the Lake" if @game.variants.include?(:lady)
           settings[:variants] << "Excalibur" if @game.variants.include?(:excalibur)
