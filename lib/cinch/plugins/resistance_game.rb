@@ -762,6 +762,7 @@ module Cinch
         if @game.started?
           player = @game.find_player(m.user)
           reply = self.tell_loyalty_to(player)
+          self.warn_about_lancelots(player) if @game.lancelots_switched?
         end
       end
       
@@ -846,6 +847,23 @@ module Cinch
           end
         end
         User(player.user).send loyalty_msg
+      end
+
+      def warn_about_lancelots(player)
+        message = nil
+        if player.role?(:evil_lancelot)
+          message = "You are now a member of the RESISTANCE."
+        elsif player.role?(:good_lancelot)
+          message = "You are now a SPY."
+        elsif player.spy? && !player.role?(:oberon)
+          evil_lancelot = @game.find_player_by_role(:evil_lancelot)
+          message = "#{evil_lancelot.user.nick} (Evil Lancelot) is now Good. Good Lancelot has joined your side, but you do not know his identity."
+        elsif player.role?(:merlin)
+          message = "One of the spies you originally saw is now on the side of Good, and there is now an additional spy whose identity you do not know."
+        end
+
+        return if message.nil?
+        User(player.user).send("WARNING: Lancelots have switched! " + message)
       end
 
       def get_game_info
