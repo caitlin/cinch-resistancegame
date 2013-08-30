@@ -226,6 +226,13 @@ class Game
     self.lancelot_deck.count(:switch) % 2 == 1
   end
 
+  def play_lancelot_card
+    return unless self.variants.include?(:lancelot1) && @current_count.number > 2
+
+    @current_round.lancelot_card = self.lancelot_deck.pop
+    self.switch_lancelots if @current_round.lancelots_switch?
+  end
+
   def switch_lancelots
     good_lancelot = self.find_player_by_role(:good_lancelot)
     evil_lancelot = self.find_player_by_role(:evil_lancelot)
@@ -374,14 +381,7 @@ class Game
     @current_round = Round.new(new_round)
     self.rounds << @current_round
     self.assign_team_leader
-    if self.variants.include?(:lancelot1)
-      if @current_round.number > 2
-        @current_round.lancelot_card = self.lancelot_deck.pop
-        if @current_round.lancelots_switch?
-          self.switch_lancelots
-        end
-      end
-    end
+    self.play_lancelot_card
   end
 
 

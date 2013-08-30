@@ -873,28 +873,33 @@ module Cinch
 
       def start_new_round
         @game.start_new_round
-        unless @game.current_round.lancelot_card.nil?
-          if @game.current_round.lancelots_switch?
-            Channel(@channel_name).send "LANCELOTS: Switch!"
-            evil_lancelot = @game.find_player_by_role(:evil_lancelot)
-            good_lancelot = @game.find_player_by_role(:good_lancelot)
-            good_loyalty_msg = "LANCELOTS SWITCH: You are now a member of the RESISTANCE."
-            evil_loyalty_msg = "LANCELOTS SWITCH: You are now a SPY."
-            if @game.lancelots_switched?
-              User(good_lancelot.user).send evil_loyalty_msg
-              User(evil_lancelot.user).send good_loyalty_msg
-            else 
-              User(good_lancelot.user).send good_loyalty_msg
-              User(evil_lancelot.user).send evil_loyalty_msg
-            end
-          
-          else
-            Channel(@channel_name).send "LANCELOTS: No switch."
-          end
-        end
+        self.show_lancelot_card
+
         two_fail_warning = (@game.current_round.special_round?) ? " This mission requires TWO FAILS for the spies." : ""
         Channel(@channel_name).send "MISSION #{@game.current_round.number}. Team Leader: #{@game.team_leader.user.nick}. Please choose a team of #{@game.current_team_size} to go on the mission.#{two_fail_warning}"
         User(@game.team_leader.user).send "You are team leader. Please choose a team of #{@game.current_team_size} to go on the mission. \"!team#{team_example(@game.current_team_size)}\""
+      end
+
+      def show_lancelot_card
+        return if @game.current_round.lancelot_card.nil?
+
+        if @game.current_round.lancelots_switch?
+          Channel(@channel_name).send "LANCELOTS: Switch!"
+          evil_lancelot = @game.find_player_by_role(:evil_lancelot)
+          good_lancelot = @game.find_player_by_role(:good_lancelot)
+          good_loyalty_msg = "LANCELOTS SWITCH: You are now a member of the RESISTANCE."
+          evil_loyalty_msg = "LANCELOTS SWITCH: You are now a SPY."
+          if @game.lancelots_switched?
+            User(good_lancelot.user).send evil_loyalty_msg
+            User(evil_lancelot.user).send good_loyalty_msg
+          else
+            User(good_lancelot.user).send good_loyalty_msg
+            User(evil_lancelot.user).send evil_loyalty_msg
+          end
+
+        else
+          Channel(@channel_name).send "LANCELOTS: No switch."
+        end
       end
 
       def team_leader_prompt
