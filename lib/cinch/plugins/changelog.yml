@@ -12,9 +12,6 @@
   changes:
     - "Changed \"Fail count\" to \"Reject count\""
     - "Added team leader to \"Time to Vote\" PM"
-- date: "2013-03-13"
-  changes:
-    - "Added Excalibur"
 - date: "2013-03-10"
   changes:
     - "Added Lady to the avroles"
