@@ -28,7 +28,7 @@ class Game
       10 => { 1 => 3, 2 => 4, 3 => 4, 4 => 5, 5 => 5}
     }
 
-  attr_accessor :started, :players, :rounds, :type, :roles, :variants, :lancelot_deck, :lady_token, :invitation_sent, :time_start, :time_end
+  attr_accessor :started, :players, :rounds, :type, :roles, :variants, :lancelot_deck, :lady_token, :assassin_dual, :invitation_sent, :time_start, :time_end
   
   def initialize
     self.started         = false
@@ -42,6 +42,9 @@ class Game
     self.time_end        = nil
     self.lancelot_deck   = []
     self.lady_token      = nil
+    # If non-nil, Assassin is dual-classed as this role.
+    # If nil, Assassin is its own role.
+    self.assassin_dual   = nil
   end
 
   #----------------------------------------------
@@ -103,6 +106,7 @@ class Game
     if type == :avalon
       self.roles   = options[:roles].map(&:to_sym)
       self.variants = options[:variants].map(&:to_sym)
+      self.assassin_dual = options[:assassin_dual] && options[:assassin_dual].to_sym
     else
       self.roles    = []
       self.variants = options[:variants].map(&:to_sym)
@@ -168,9 +172,12 @@ class Game
     # avalon roles added automatically, if no roles, we are playing base
     unless self.roles.empty?
       loyalty_deck << :merlin
-      loyalty_deck << :assassin
       resistance_count -= 1
-      spy_count -= 1
+
+      if self.assassin_dual.nil?
+        loyalty_deck << :assassin
+        spy_count -= 1
+      end
 
       if self.variants.include?(:lancelot3) || self.variants.include?(:lancelot1)
         loyalty_deck << :good_lancelot
@@ -437,6 +444,11 @@ class Game
 
   def find_player_by_role(role)
     self.players.find{ |p| p.loyalty == role }
+  end
+
+  def find_assassin
+    assassin = self.assassin_dual || :assassin
+    self.find_player_by_role(assassin)
   end
 
   #----------------------------------------------

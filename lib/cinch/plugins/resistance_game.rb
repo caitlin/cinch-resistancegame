@@ -660,7 +660,7 @@ module Cinch
 
       def assassinate_player(m, target)
         if @game.is_over? && @game.current_round.in_assassinate_phase?
-          if @game.find_player_by_role(:assassin).user == m.user
+          if @game.find_assassin.user == m.user
             killed = @game.find_player(target)
             if killed.nil?
               User(m.user).send "\"#{target}\" is an invalid target."
@@ -832,6 +832,10 @@ module Cinch
           else
             loyalty_msg = "I don't know what you are. Something's gone wrong."
           end
+
+          if @game.assassin_dual && player.role?(@game.assassin_dual)
+            loyalty_msg += "\nIn addition, you are THE ASSASSIN. Try to figure out who Merlin is."
+          end
         else
           if player.spy?
             if @game.with_variant?(:blind_spies)
@@ -859,7 +863,13 @@ module Cinch
       def get_loyalty_info
         if @game.type == :avalon
           spies = @game.spies.sort_by{|s| s.loyalty}.map do |s|
-            "#{s.user.nick}" + (s.loyalty != :spy ? " (#{s.loyalty.to_s.gsub("_"," ").titleize})" : "" )
+            role = ""
+            if s.loyalty != :spy
+              role = s.loyalty.to_s.gsub("_", " ").titleize
+              role += "/Assassin" if @game.assassin_dual == s.loyalty
+              role = " (" + role + ")"
+            end
+            s.user.nick + role
           end
           resistance = @game.resistance.sort_by{|r| r.loyalty}.map do |r|
             "#{r.user.nick}" + (r.loyalty != :resistance ? " (#{r.loyalty.to_s.gsub("_"," ").titleize})" : "" )
@@ -995,7 +1005,7 @@ module Cinch
         else
           if @game.avalon?
             @game.assassinate
-            assassin = @game.find_player_by_role(:assassin)
+            assassin = @game.find_assassin
             Channel(@channel_name).send "The resistance successfully completed the missions, but the spies still have a chance."
             Channel(@channel_name).send "The Assassin is: #{assassin.user.nick}. Choose a rebel to assassinate."
             User(assassin.user).send "You are the assassin, and it's time to assassinate one of the resistance. \"!assassinate name\""
@@ -1158,16 +1168,34 @@ module Cinch
           options = game_options || ""
           options = options.downcase.split(" ")
           if game_type.downcase == "avalon"
-            valid_role_options    = ["percival", "mordred", "oberon", "morgana"]
+            valid_assassin_subs   = ["mordred", "oberon", "morgana"]
+            valid_role_options    = ["percival"] + valid_assassin_subs
             valid_variant_options = ["lady", "lancelot1", "lancelot3", "excalibur"]
+
+            assassin_dual = nil
+            options.each_with_index { |opt, index|
+              role = nil
+              if opt.start_with?("+", "*")
+                role = opt[1..-1]
+              elsif opt.end_with?("+", "*")
+                role = opt[0..-2]
+              end
+
+              if valid_assassin_subs.include?(role)
+                assassin_dual = role
+                options[index] = role
+              end
+            }
+
             role_options    = options.select{ |opt| valid_role_options.include?(opt) }
             variant_options = options.select{ |opt| valid_variant_options.include?(opt) }
-            roles = ["merlin", "assassin"] + role_options
+            roles = ["merlin"] + role_options
+            roles += ["assassin"] if assassin_dual.nil?
             if variant_options.include?("lancelot3") || variant_options.include?("lancelot1")
               roles.push("good_lancelot").push("evil_lancelot")
             end
 
-            @game.change_type :avalon, :roles => roles, :variants => variant_options
+            @game.change_type :avalon, :roles => roles, :variants => variant_options, :assassin_dual => assassin_dual
             game_type_message = "#{game_change_prefix} to Avalon. Using roles: #{self.game_settings[:roles].join(", ")}."
           else
             valid_variant_options = ["blind_spies", "lady", "excalibur"]
@@ -1183,7 +1211,10 @@ module Cinch
 
       def game_settings
         settings = {}
-        settings[:roles] = @game.roles.map{ |r| r.to_s.gsub("_", " ").titleize }
+        settings[:roles] = @game.roles.map{ |r|
+          dualed = @game.assassin_dual == r
+          r.to_s.gsub("_", " ").titleize + (dualed ? "/Assassin" : "")
+        }
         settings[:variants] = []
         if @game.avalon?
           settings[:variants] << "Lancelot #1" if @game.variants.include?(:lancelot1)
