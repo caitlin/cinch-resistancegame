@@ -810,7 +810,7 @@ module Cinch
               revealed_to_percival_names = [merlin, morgana].shuffle.map{ |s| s.user.nick }
               percy_info = "Between #{revealed_to_percival_names.join(' and ')}, there is Merlin and Morgana."
             end
-            loyalty_msg = "You are PERCIVAL (resistance). Help protect Merlin's identity.#{percy_info}"
+            loyalty_msg = "You are PERCIVAL (resistance). Help protect Merlin's identity. #{percy_info}"
           elsif player.role?(:good_lancelot)
             evil_lancelot = @game.find_player_by_role(:evil_lancelot)
             show_other = @game.variants.include?(:lancelot3) ? "Evil Lancelot is: #{evil_lancelot.user.nick}." : ""
