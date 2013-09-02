@@ -238,7 +238,7 @@ class Game
   end
 
   def play_lancelot_card
-    return unless self.variants.include?(:lancelot1) && @current_count.number > 2 || self.variants.include?(:lancelot2)
+    return unless self.variants.include?(:lancelot1) && @current_round.number > 2 || self.variants.include?(:lancelot2)
 
     @current_round.lancelot_card = self.lancelot_deck.pop
     self.switch_lancelots if @current_round.lancelots_switch?
