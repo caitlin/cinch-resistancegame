@@ -193,7 +193,7 @@ module Cinch
           User(m.user).send "8 players: 3, 4, 4, 5*, 5"
           User(m.user).send "9 players: 3, 4, 4, 5* ,5"
           User(m.user).send "10 players: 3, 4, 4, 5*, 5"
-          User(m.user).send "When there are 7+ players, mission 4 will TWO fails from the Spies." 
+          User(m.user).send "When there are 7+ players, mission 4 requires TWO fails from the Spies." 
         else
           User(m.user).send "GAME SETUP: When the game starts, ResistanceBot will PM you to tell you whether you are a Resistance or a Spy. If you are a Spy, it will also tell you who the other Spies are.  The number of Spies is dependent on the total number of players, but will always be strictly less than the number of Resistance members."
           User(m.user).send "HOW TO WIN: There will be up to 5 Missions. If you are a member of the Resistance, you and the rest of the Resistance will win if 3 Missions Pass.  If you are a Spy, you and the other Spies will win if 3 Missions Fail. The game is over as soon as one of those conditions is met. There is another win condition for the Spies, explained below."
