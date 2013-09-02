@@ -35,8 +35,12 @@ class Player
     [:spy, :assassin, :mordred, :oberon, :morgana, :evil_lancelot].any?{ |role| role == self.loyalty }
   end
 
+  def currently_evil_lancelot?
+    self.loyalty == :good_lancelot && self.lancelot_switch || self.loyalty == :evil_lancelot && !self.lancelot_switch
+  end
+
   def spy?
-    [:spy, :assassin, :mordred, :oberon, :morgana].any?{ |role| role == self.loyalty } || (self.loyalty == :good_lancelot && self.lancelot_switch) || (self.loyalty == :evil_lancelot && !self.lancelot_switch )
+    [:spy, :assassin, :mordred, :oberon, :morgana].any?{ |role| role == self.loyalty } || self.currently_evil_lancelot?
   end
 
   def resistance?

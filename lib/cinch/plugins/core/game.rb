@@ -145,7 +145,7 @@ class Game
     self.started = true
     self.time_start = Time.now
     self.assign_loyalties
-    self.make_lancelot_deck if self.variants.include?(:lancelot1)
+    self.make_lancelot_deck if self.variants.include?(:lancelot1) || self.variants.include?(:lancelot2)
     @current_round = Round.new(1)
     self.rounds << @current_round
     self.players.shuffle!.rotate!(rand(MAX_PLAYERS)) # shuffle seats
@@ -179,11 +179,9 @@ class Game
         spy_count -= 1
       end
 
-      if self.variants.include?(:lancelot3) || self.variants.include?(:lancelot1)
+      if self.variants.include?(:lancelot1) || self.variants.include?(:lancelot2) || self.variants.include?(:lancelot3)
         loyalty_deck << :good_lancelot
         resistance_count -= 1
-      end 
-      if self.variants.include?(:lancelot3) || self.variants.include?(:lancelot1)
         loyalty_deck << :evil_lancelot
         spy_count -= 1
       end 
@@ -224,13 +222,26 @@ class Game
   # Avalon variants
 
   def make_lancelot_deck
-    self.lancelot_deck << [:switch] * 2
-    self.lancelot_deck << [:no_switch] * 3
-    self.lancelot_deck.flatten!.shuffle!    
+    if self.variants.include?(:lancelot1)
+      self.lancelot_deck << [:switch] * 2
+      self.lancelot_deck << [:no_switch] * 3
+      self.lancelot_deck.flatten!.shuffle!
+    elsif self.variants.include?(:lancelot2)
+      self.lancelot_deck << [:switch] * 2
+      self.lancelot_deck << [:no_switch] * 5
+      self.lancelot_deck.flatten!.shuffle!
+    end
   end
 
   def lancelots_switched?
     self.lancelot_deck.count(:switch) % 2 == 1
+  end
+
+  def play_lancelot_card
+    return unless self.variants.include?(:lancelot1) && @current_count.number > 2 || self.variants.include?(:lancelot2)
+
+    @current_round.lancelot_card = self.lancelot_deck.pop
+    self.switch_lancelots if @current_round.lancelots_switch?
   end
 
   def switch_lancelots
@@ -381,14 +392,7 @@ class Game
     @current_round = Round.new(new_round)
     self.rounds << @current_round
     self.assign_team_leader
-    if self.variants.include?(:lancelot1)
-      if @current_round.number > 2
-        @current_round.lancelot_card = self.lancelot_deck.pop
-        if @current_round.lancelots_switch?
-          self.switch_lancelots
-        end
-      end
-    end
+    self.play_lancelot_card
   end
 
 
