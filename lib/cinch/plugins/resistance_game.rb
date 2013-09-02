@@ -676,9 +676,25 @@ module Cinch
         if @game.is_over? && @game.current_round.in_assassinate_phase?
           if @game.find_assassin.user == m.user
             killed = @game.find_player(target)
+
+            # We don't let the Assassin kill a spy known to him.
+            # An Oberon/Assassin can kill anyone.
+            # A non-Oberon Assassin can kill any Resistance member, or Oberon.
+            #
+            # If Lancelots are in play and switch once:
+            # Spies know NOT to kill original Evil Lance: he can't be Merlin.
+            # They don't know who original Good Lance is, so he IS a target
+            # for the kill.
+            # Therefore, we to check a player's ORIGINAL allegiance.
+            #
+            # Finally, current code does not allow for Lancelot assassins,
+            # so we avoid that hairy issue. Lancelot3/Assassin could work, but
+            # is not implemented either for simplicity.
+
+            assassin_is_oberon = @game.assassin_dual == :oberon
             if killed.nil?
               User(m.user).send "\"#{target}\" is an invalid target."
-            elsif killed.spy?
+            elsif killed.original_spy? && !assassin_is_oberon && !killed.role?(:oberon)
               User(m.user).send "\"#{target}\" is not a member of the resistance"
             else
               spies, resistance = get_loyalty_info
