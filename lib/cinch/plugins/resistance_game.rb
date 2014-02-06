@@ -207,7 +207,7 @@ module Cinch
       def about(m)
         User(m.user).send "ResistanceBot is an IRC-playable version of The Resistance by Don Eskridge. Find out more about the game on: http://boardgamegeek.com/boardgame/41114/the-resistance"
         User(m.user).send "This bot was created by: caitlinface. Many thanks to Chank (helping with development), timotab (helping with project management), and a large handful of #boardgames for testing early versions."
-        User(m.user).send "It was written in Ruby, using the Cinch framework. Yes, I'll put it on GitHub soon. Here's our to-do list: https://www.pivotaltracker.com/projects/642861"
+        User(m.user).send "It was written in Ruby, using the Cinch framework. Github: https://github.com/caitlin/cinch-resistancegame"
         #User(m.user).send "Copies \"sold\": 3"
       end
 
