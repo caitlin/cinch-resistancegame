@@ -160,6 +160,10 @@ class Round
     self.state = :lady
   end
 
+  def lock_decisions
+    self.state = :decisions_locked
+  end
+
   def end_round
     self.state = :end
   end

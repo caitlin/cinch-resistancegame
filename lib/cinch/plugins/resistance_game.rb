@@ -1039,6 +1039,10 @@ module Cinch
       end
 
       def process_mission_votes
+        # Since we pause while revealing results, we enter a "lock decisions" phase
+        # so that players do not send extra commands and break the game.
+        @game.current_round.lock_decisions
+
         # reveal the results
         Channel(@channel_name).send "The team is back from the mission..."
         @game.current_round.mission_votes.values.sort.reverse.each do |vote|
