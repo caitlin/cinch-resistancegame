@@ -341,35 +341,6 @@ class Game
     self.not_back_from_mission.size == 0
   end
 
-  # NEXT ROUND
-  def check_game_state
-    if self.started?
-      if @current_round.in_team_making_phase?
-        status = "Waiting on #{self.team_leader.user} to propose a team of #{self.current_team_size}"
-      elsif @current_round.in_team_proposed_phase?
-        proposed_team = @current_round.team.players.map(&:user).join(', ')
-        status = "Team proposed: #{proposed_team} - Waiting on #{self.team_leader.user} to confirm or choose a new team"
-      elsif @current_round.in_vote_phase?
-        status = "Waiting on players to vote: #{self.not_voted.map(&:user).join(", ")}"
-      elsif @current_round.in_mission_phase?
-        status = "Waiting on players to return from the mission: #{self.not_back_from_mission.map(&:user).join(", ")}"
-      elsif @current_round.in_excalibur_phase?
-        status = "Waiting on #{self.current_round.excalibur_holder.user.nick} to choose to use Excalibur or not"
-      elsif @current_round.in_lady_phase?
-        status = "Waiting on #{self.lady_token.user.nick} to choose someone to examine with Lady of the Lake"
-      elsif @current_round.in_assassinate_phase?
-        status = "Waiting on the assassin to choose a target"
-      end
-    else
-      if self.player_count.zero?
-        status = "No game in progress."
-      else
-        status = "A game is forming. #{player_count} players have joined: #{self.players.map(&:user).join(", ")}"
-      end
-    end
-    status
-  end
-
   def mission_results
     self.rounds.map { |r| r.mission_success? }
   end
