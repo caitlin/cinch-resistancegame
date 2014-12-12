@@ -42,6 +42,7 @@ module Cinch
       match /propose (.+)/i,     :method => :propose_team
       match /vote (.+)/i,        :method => :team_vote
       match /mission (.+)/i,     :method => :mission_vote
+      match /trap (.+)/i,        :method => :trap
       match /excalibur (.+)/i,   :method => :excalibur_use
       match /xcal (.+)/i,        :method => :excalibur_use
       match /sheath/i,           :method => :excalibur_no
@@ -253,6 +254,9 @@ module Cinch
               else
                 mission_result = "FAILED (#{prev_round.mission_fails})"
               end
+              if @game.variants.include?(:trapper)
+                mission_result += " - #{prev_round.team_leader.user.nick} traps #{prev_round.trapped.user.nick}"
+              end
               if @game.variants.include?(:excalibur)
                 unless prev_round.excalibured.nil?
                   mission_result += " - #{prev_round.excalibur_holder.user.nick} xCals #{prev_round.excalibured.user.nick}"
@@ -286,6 +290,11 @@ module Cinch
             end
           end
           if prev_round.ended? || @game.current_round.in_assassinate_phase? || @game.current_round.in_lady_phase?
+            trap_result = ""
+            if @game.variants.include?(:trapper)
+              trap_result = " - #{prev_round.team_leader.user.nick} traps #{prev_round.trapped.user.nick}"
+            end
+
             xcal_result = ""
             if @game.variants.include?(:excalibur)
               if prev_round.excalibured.nil?
@@ -294,7 +303,7 @@ module Cinch
                 xcal_result = " - Excalibur used on #{prev_round.excalibured.user.nick}"
               end
             end
-            m.reply "RESULT: #{prev_round.mission_success? ? "PASSED" : "FAILED (#{prev_round.mission_fails})"}#{xcal_result}"
+            m.reply "RESULT: #{prev_round.mission_success? ? "PASSED" : "FAILED (#{prev_round.mission_fails})"}#{trap_result}#{xcal_result}"
           end
         end
       end
@@ -656,7 +665,11 @@ module Cinch
                 @game.vote_for_mission(m.user, vote)
                 User(m.user).send "You voted for the mission to '#{vote}'."
                 if @game.all_mission_votes_in?
-                  if @game.variants.include?(:excalibur)
+                  # It's not clear whether Trapper or Excalibur comes first?
+                  # Arbitrarily picked Trapper.
+                  if @game.variants.include?(:trapper)
+                    self.prompt_for_trapper
+                  elsif @game.variants.include?(:excalibur)
                     self.prompt_for_excalibur
                   else
                     self.process_mission_votes
@@ -736,6 +749,35 @@ module Cinch
           else
             User(m.user).send "You do not have the Lady of the Lake."
           end
+        end
+      end
+
+      def trap(m, target)
+        return unless @game.current_round.in_trapper_phase?
+        unless @game.current_round.team_leader.user == m.user
+          m.user.send('You are not the Trapper.')
+          return
+        end
+
+        trapped = @game.find_player(target)
+        if trapped.nil?
+          m.user.send("\"#{target}\" is an invalid target.")
+          return
+        end
+
+        old_vote = @game.current_round.use_trap_on(trapped)
+        if old_vote.nil?
+          m.user.send("#{target} was not on the mission.")
+          return
+        end
+
+        Channel(@channel_name).send("#{m.user.nick} traps #{target}.")
+        m.user.send("#{target} put in a #{old_vote.upcase}.")
+
+        if @game.variants.include?(:excalibur)
+          self.prompt_for_excalibur
+        else
+          self.process_mission_votes
         end
       end
 
@@ -902,6 +944,7 @@ module Cinch
 
       def get_game_info
         team_sizes = @game.team_sizes.values
+        team_sizes.map! { |x| x + 1 } if @game.variants.include?(:trapper)
         if @game.player_count >= 7
           team_sizes[3] = team_sizes.at(3).to_s + "*"
         end
@@ -1053,6 +1096,13 @@ module Cinch
           Channel(@channel_name).send "... the mission fails!"
         end
         self.check_game_state
+      end
+
+      def prompt_for_trapper
+        @game.current_round.ask_for_trapper
+        leader = @game.current_round.team_leader
+        Channel(@channel_name).send "TRAPPER: #{leader.user.nick}, select a player to trap."
+        leader.user.send('Select a player to trap with "!trap name"')
       end
 
       def prompt_for_excalibur
@@ -1250,7 +1300,7 @@ module Cinch
           if game_type.downcase == "avalon"
             valid_assassin_subs   = ["mordred", "oberon", "morgana"]
             valid_role_options    = ["percival"] + valid_assassin_subs
-            valid_variant_options = ["lady", "lancelot1", "lancelot2", "lancelot3", "excalibur"]
+            valid_variant_options = ["lady", "lancelot1", "lancelot2", "lancelot3", "excalibur", "trapper"]
 
             assassin_dual = nil
             options.each_with_index { |opt, index|
@@ -1278,7 +1328,7 @@ module Cinch
             @game.change_type :avalon, :roles => roles, :variants => variant_options, :assassin_dual => assassin_dual
             game_type_message = "#{game_change_prefix} to Avalon. Using roles: #{self.game_settings[:roles].join(", ")}."
           else
-            valid_variant_options = ["blind_spies", "lady", "excalibur"]
+            valid_variant_options = ["blind_spies", "lady", "excalibur", "trapper"]
             variant_options = options.select{ |opt| valid_variant_options.include?(opt.downcase) }
             
             @game.change_type :base, :variants => variant_options
@@ -1302,6 +1352,7 @@ module Cinch
           settings[:variants] << "Lancelot #3" if @game.variants.include?(:lancelot3)
           settings[:variants] << "Lady of the Lake" if @game.variants.include?(:lady)
           settings[:variants] << "Excalibur" if @game.variants.include?(:excalibur)
+          settings[:variants] << "Trapper" if @game.variants.include?(:trapper)
         else
           settings[:variants] = @game.variants.map{ |o| o.to_s.gsub("_", " ").titleize }
         end
