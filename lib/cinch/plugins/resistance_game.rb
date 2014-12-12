@@ -236,6 +236,19 @@ module Cinch
         end
       end
 
+      def format_round_result(prev_round)
+        result = prev_round.mission_success? ? 'PASSED' : 'FAILED'
+        extra = []
+
+        # If the mission failed, or it's the 4th mission in a 7-10p game, show how many fails.
+        if prev_round.special_round? || !prev_round.mission_success?
+          fail_count = prev_round.mission_fails
+          extra << (fail_count == 1 ? "#{fail_count} FAIL" : "#{fail_count} FAILS")
+        end
+
+        return result + (extra.empty? ? '' : " (#{extra.join(', ')})")
+      end
+
       def missions_overview(m)
         round = @game.current_round.number
         (1..round).to_a.each do |number|
@@ -243,17 +256,7 @@ module Cinch
           if ! prev_round.nil? && (prev_round.ended? || prev_round.in_mission_phase? || @game.current_round.in_assassinate_phase?)
             team = prev_round.team
             if prev_round.ended? || @game.current_round.in_assassinate_phase?
-              if prev_round.mission_success?
-                if prev_round.special_round?
-                  fail_count = prev_round.mission_fails
-                  fail_result = (fail_count == 1 ? "#{fail_count} FAIL" : "#{fail_count} FAILS")
-                  mission_result = "PASSED (#{fail_result})"
-                else
-                  mission_result = "PASSED"
-                end
-              else
-                mission_result = "FAILED (#{prev_round.mission_fails})"
-              end
+              mission_result = format_round_result(prev_round)
               if @game.variants.include?(:trapper)
                 mission_result += " - #{prev_round.team_leader.user.nick} traps #{prev_round.trapped.user.nick}"
               end
@@ -303,7 +306,7 @@ module Cinch
                 xcal_result = " - Excalibur used on #{prev_round.excalibured.user.nick}"
               end
             end
-            m.reply "RESULT: #{prev_round.mission_success? ? "PASSED" : "FAILED (#{prev_round.mission_fails})"}#{trap_result}#{xcal_result}"
+            m.reply "RESULT: #{format_round_result(prev_round)}#{trap_result}#{xcal_result}"
           end
         end
       end
