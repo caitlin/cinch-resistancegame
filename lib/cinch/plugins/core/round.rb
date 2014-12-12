@@ -71,6 +71,9 @@ class Round
   def use_excalibur_on(player)
     self.excalibured = player
     old_vote = self.mission_votes[player]
+    # Intentionally not handling 'reverse' here because Excalibur+Reverser should not mix.
+    # If we want to be smart, we can have it always switch to "the other card this player should play", but it is questionable.
+    # If we do that, we SHOULD NOT reveal the new vote to the Excalibur user, as we currently do (Search for new_vote in ResistanceGame)
     if old_vote == 'fail'
       self.mission_votes[player] = 'pass' 
     elsif old_vote == 'pass'
@@ -85,7 +88,7 @@ class Round
   def mission_success?
     mission_score = self.mission_fails
     if mission_score.nil?
-      success = nil
+      return nil
     else
       if self.special_round?
         success = mission_score < 2 # need 2 fails
@@ -93,11 +96,18 @@ class Round
         success = mission_score < 1 # otherwise need 1 fail
       end
     end 
-    success
+
+    # An odd number of Reverse cards will reverse it. An even number cancels out!
+    reverse_it = self.mission_reverses % 2 == 1
+    return reverse_it ? !success : success
   end
 
   def mission_fails
     mission_votes.values.map{|mv| mv == 'fail' ? 1 : 0 }.reduce(:+) 
+  end
+
+  def mission_reverses
+    mission_votes.values.count { |mv| mv == 'reverse' }
   end
 
 

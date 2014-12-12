@@ -240,11 +240,17 @@ module Cinch
         result = prev_round.mission_success? ? 'PASSED' : 'FAILED'
         extra = []
 
+        reverse_count = prev_round.mission_reverses
+
         # If the mission failed, or it's the 4th mission in a 7-10p game, show how many fails.
-        if prev_round.special_round? || !prev_round.mission_success?
+        # If the mission succeeded because of reverses, also show how many fails.
+        if prev_round.special_round? || !prev_round.mission_success? || (prev_round.mission_success? && reverse_count > 0)
           fail_count = prev_round.mission_fails
           extra << (fail_count == 1 ? "#{fail_count} FAIL" : "#{fail_count} FAILS")
         end
+
+        # If there are any reverses, show them too.
+        extra << (reverse_count == 1 ? "#{reverse_count} REVERSE" : "#{reverse_count} REVERSES") if reverse_count > 0
 
         return result + (extra.empty? ? '' : " (#{extra.join(', ')})")
       end
@@ -655,6 +661,8 @@ module Cinch
           player = @game.find_player(m.user)
           if @game.with_variant?(:lancelot2) && player.currently_evil_lancelot?
             valid_options = ['fail']
+          elsif player.reverser?
+            valid_options = ['pass', 'reverse']
           elsif player.spy?
             valid_options = ['pass', 'fail']
           else
@@ -846,6 +854,8 @@ module Cinch
 
         # If player is a spy, they can see other spies
         other_spies = player.spy? ? spies.reject { |s| s == player } : []
+        # But not Spy Reverser if blind
+        other_spies.reject! { |s| s.role?(:spy_reverser) } if @game.with_variant?(:blind_spy_reverser)
 
         if @game.avalon?
           # Spies don't see Oberon if he's in play.
@@ -868,6 +878,9 @@ module Cinch
           # if playing with oberon, notify spies they are missing one spy in their info
           if oberon_note = @game.with_role?(:oberon) 
             spy_info << " Oberon is a spy, but does not reveal to you and does not know who the other spies are."
+          end
+          if @game.with_variant?(:blind_spy_reverser)
+            spy_info << " The Spy Reverser is a spy, but does not reveal to you and does not know who the other spies are."
           end
 
 
@@ -904,8 +917,16 @@ module Cinch
             loyalty_msg = "You are OBERON (spy). You are a bad guy, but you don't reveal to them and they don't reveal to you."
           elsif player.role?(:morgana)
             loyalty_msg = "You are MORGANA (spy). You revealed yourself as Merlin to Percival.#{spy_info}"
+          elsif player.role?(:spy_reverser)
+            if @game.with_variant?(:blind_spy_reverser)
+              loyalty_msg = 'You are THE SPY REVERSER. You do not know the other spies and they do not know you.'
+            else
+              loyalty_msg = "You are THE SPY REVERSER.#{spy_info}"
+            end
           elsif player.role?(:spy)
             loyalty_msg = "You are A SPY.#{spy_info}"
+          elsif player.role?(:resistance_reverser)
+            loyalty_msg = "You are THE RESISTANCE REVERSER."
           elsif player.role?(:resistance)
             loyalty_msg = "You are a member of the RESISTANCE."
           else
@@ -921,8 +942,19 @@ module Cinch
               spy_message = "This is the Blind Spies variant. You are a spy, but you don't reveal to the other spies and they don't reveal to you."
             else
               spy_message = other_spies.empty? ? '' : "The other spies are: #{other_spies.map { |s| s.user.name }.join(', ')}."
+              if @game.with_variant?(:blind_spy_reverser)
+                spy_message << "The Spy Reverser is a spy, but does not reveal to you and does not know who the other spies are."
+              end
             end
             loyalty_msg = "You are A SPY! #{spy_message}"
+          elsif player.role?(:spy_reverser)
+            if @game.with_variant?(:blind_spy_reverser) || @game.with_variant?(:blind_spies)
+              loyalty_msg = 'You are THE SPY REVERSER. You do not know the other spies and they do not know you.'
+            else
+              loyalty_msg = "You are THE SPY REVERSER. The other spies are: #{other_spies.map { |s| s.user.name }.join(', ')}"
+            end
+          elsif player.role?(:resistance_reverser)
+            loyalty_msg = "You are THE RESISTANCE REVERSER."
           elsif player.role?(:resistance)
             loyalty_msg = "You are a member of the RESISTANCE."
           else
@@ -1047,6 +1079,8 @@ module Cinch
           @game.current_round.team.players.each do |p|
             if @game.with_variant?(:lancelot2) && p.currently_evil_lancelot?
               mission_prompt = 'Mission time! Since you are the currently-evil Lancelot, you can only choose to FAIL the mission. "!mission fail"'
+            elsif p.reverser?
+              mission_prompt = 'Mission time! Since you are a reverser, you have the option to PASS or REVERSE the mission. "!mission pass" or "!mission reverse"'
             elsif p.spy?
               mission_prompt = 'Mission time! Since you are a spy, you have the option to PASS or FAIL the mission. "!mission pass" or "!mission fail"'
             else
@@ -1090,7 +1124,13 @@ module Cinch
 
         # reveal the results
         Channel(@channel_name).send "The team is back from the mission..."
-        @game.current_round.mission_votes.values.sort.reverse.each do |vote|
+
+        # Show the results in the order: PASS, FAIL, REVERSE
+        # REVERSE is longer, so sorting by length first moves it to the back.
+        # P comes later in the alphabet than F, so we'll take the negative value so PASS comes first.
+        votes = @game.current_round.mission_votes.values.sort_by! { |x| [x.length, -x[0].ord] }
+
+        votes.each do |vote|
           sleep 3
           Channel(@channel_name).send vote.upcase
         end
@@ -1298,7 +1338,7 @@ module Cinch
       end
 
       def set_game_settings(m, game_type, game_options = "")
-        common_variant_options = ["lady", "excalibur", "trapper"]
+        common_variant_options = ["lady", "excalibur", "trapper", "resistance_reverser", "spy_reverser", "blind_spy_reverser"]
 
         # this is really really wonky =(
         unless @game.started?
@@ -1333,13 +1373,20 @@ module Cinch
               roles.push("good_lancelot").push("evil_lancelot")
             end
 
+            roles.push("resistance_reverser") if variant_options.include?("resistance_reverser")
+            roles.push("spy_reverser") if variant_options.include?("spy_reverser") || variant_options.include?("blind_spy_reverser")
+
             @game.change_type :avalon, :roles => roles, :variants => variant_options, :assassin_dual => assassin_dual
             game_type_message = "#{game_change_prefix} to Avalon. Using roles: #{self.game_settings[:roles].join(", ")}."
           else
             valid_variant_options = ["blind_spies"] + common_variant_options
             variant_options = options.select{ |opt| valid_variant_options.include?(opt.downcase) }
-            
-            @game.change_type :base, :variants => variant_options
+
+            roles = []
+            roles.push("resistance_reverser") if variant_options.include?("resistance_reverser")
+            roles.push("spy_reverser") if variant_options.include?("spy_reverser") || variant_options.include?("blind_spy_reverser")
+
+            @game.change_type :base, :roles => roles, :variants => variant_options
             game_type_message = "#{game_change_prefix} to base."
           end
           with_variants = self.game_settings[:variants].empty? ? "" : " Using variants: #{self.game_settings[:variants].join(", ")}."
