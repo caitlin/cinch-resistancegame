@@ -955,22 +955,17 @@ module Cinch
       end
 
       def get_loyalty_info
-        if @game.type == :avalon
-          spies = @game.spies.sort_by{|s| s.loyalty}.map do |s|
-            role = ""
-            if s.loyalty != :spy
-              role = s.loyalty.to_s.gsub("_", " ").titleize
-              role += "/Assassin" if @game.assassin_dual == s.loyalty
-              role = " (" + role + ")"
-            end
-            s.user.nick + role
+        spies = @game.spies.sort_by{|s| s.loyalty}.map do |s|
+          role = ""
+          if s.loyalty != :spy
+            role = s.loyalty.to_s.gsub("_", " ").titleize
+            role += "/Assassin" if @game.assassin_dual == s.loyalty
+            role = " (" + role + ")"
           end
-          resistance = @game.resistance.sort_by{|r| r.loyalty}.map do |r|
-            "#{r.user.nick}" + (r.loyalty != :resistance ? " (#{r.loyalty.to_s.gsub("_"," ").titleize})" : "" )
-          end          
-        else
-          spies = @game.spies.map{ |s| s.user.nick }
-          resistance = @game.resistance.map{ |r| r.user.nick }
+          s.user.nick + role
+        end
+        resistance = @game.resistance.sort_by{|r| r.loyalty}.map do |r|
+          "#{r.user.nick}" + (r.loyalty != :resistance ? " (#{r.loyalty.to_s.gsub("_"," ").titleize})" : "" )
         end
         return spies, resistance
       end
