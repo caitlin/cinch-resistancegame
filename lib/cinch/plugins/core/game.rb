@@ -409,7 +409,8 @@ class Game
   end
 
   def current_team_size
-    TEAM_SIZES[self.player_count][@current_round.number]
+    base = TEAM_SIZES[self.player_count][@current_round.number]
+    return base + (with_variant?(:trapper) ? 1 : 0)
   end
 
   def original_spies

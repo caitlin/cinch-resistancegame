@@ -4,7 +4,7 @@
 
 class Round
 
-  attr_accessor :teams, :number, :mission_votes, :state, :excalibured, :lancelot_card  
+  attr_accessor :teams, :number, :mission_votes, :state, :excalibured, :trapped, :lancelot_card
 
   def initialize(number)
     self.state           = :team_making # team_making, team_confirm, vote, mission, excalibur, lady, (assassinate), end
@@ -13,6 +13,7 @@ class Round
     self.mission_votes   = {}
     self.lancelot_card   = nil
     self.excalibured     = nil
+    self.trapped         = nil
   end
 
   # the current round team is the last team
@@ -61,6 +62,11 @@ class Round
   #================================================================================
   # Mission methods
   #================================================================================
+
+  def use_trap_on(player)
+    self.trapped = player
+    return self.mission_votes.delete(player)
+  end
 
   def use_excalibur_on(player)
     self.excalibured = player
@@ -116,6 +122,10 @@ class Round
     self.state == :mission
   end
 
+  def in_trapper_phase?
+    self.state == :trapper
+  end
+
   def in_excalibur_phase?
     self.state == :excalibur
   end
@@ -146,6 +156,10 @@ class Round
 
   def go_on_mission
     self.state = :mission
+  end
+
+  def ask_for_trapper
+    self.state = :trapper
   end
 
   def ask_for_excalibur
