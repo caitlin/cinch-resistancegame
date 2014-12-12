@@ -1296,6 +1296,8 @@ module Cinch
       end
 
       def set_game_settings(m, game_type, game_options = "")
+        common_variant_options = ["lady", "excalibur", "trapper"]
+
         # this is really really wonky =(
         unless @game.started?
           game_change_prefix = m.channel.nil? ? "#{m.user.nick} has changed the game" : "The game has been changed"
@@ -1304,7 +1306,7 @@ module Cinch
           if game_type.downcase == "avalon"
             valid_assassin_subs   = ["mordred", "oberon", "morgana"]
             valid_role_options    = ["percival"] + valid_assassin_subs
-            valid_variant_options = ["lady", "lancelot1", "lancelot2", "lancelot3", "excalibur", "trapper"]
+            valid_variant_options = ["lancelot1", "lancelot2", "lancelot3"] + common_variant_options
 
             assassin_dual = nil
             options.each_with_index { |opt, index|
@@ -1332,7 +1334,7 @@ module Cinch
             @game.change_type :avalon, :roles => roles, :variants => variant_options, :assassin_dual => assassin_dual
             game_type_message = "#{game_change_prefix} to Avalon. Using roles: #{self.game_settings[:roles].join(", ")}."
           else
-            valid_variant_options = ["blind_spies", "lady", "excalibur", "trapper"]
+            valid_variant_options = ["blind_spies"] + common_variant_options
             variant_options = options.select{ |opt| valid_variant_options.include?(opt.downcase) }
             
             @game.change_type :base, :variants => variant_options
