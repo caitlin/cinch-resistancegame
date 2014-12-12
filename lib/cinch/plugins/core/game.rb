@@ -103,12 +103,11 @@ class Game
 
   def change_type(type, options = {})
     self.type = type
+    self.roles = options[:roles].map(&:to_sym)
     if type == :avalon
-      self.roles   = options[:roles].map(&:to_sym)
       self.variants = options[:variants].map(&:to_sym)
       self.assassin_dual = options[:assassin_dual] && options[:assassin_dual].to_sym
     else
-      self.roles    = []
       self.variants = options[:variants].map(&:to_sym)
     end    
   end
@@ -169,8 +168,7 @@ class Game
     loyalty_deck = []
 
     # add roles - this could be done way better probably
-    # avalon roles added automatically, if no roles, we are playing base
-    unless self.roles.empty?
+    if self.avalon?
       loyalty_deck << :merlin
       resistance_count -= 1
 
@@ -206,6 +204,15 @@ class Game
         spy_count -= 1
       end 
 
+    end
+
+    if self.roles.include?(:resistance_reverser)
+      loyalty_deck << :resistance_reverser
+      resistance_count -= 1
+    end
+    if self.roles.include?(:spy_reverser)
+      loyalty_deck << :spy_reverser
+      spy_count -= 1
     end
 
     # build the rest of the loyalty deck and shuffle
