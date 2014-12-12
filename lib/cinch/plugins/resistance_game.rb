@@ -1310,13 +1310,8 @@ module Cinch
               User(m.user).send "You are in the game, goof!"
             else
               spies, resistance = get_loyalty_info  
-              if @game.type == :avalon
-                User(m.user).send "Avalon Roles:"
-                User(m.user).send "Spies are #{spies.join(", ")}."
-                User(m.user).send "Resistance are #{resistance.join(", ")}."
-              else
-                User(m.user).send "Okay! The spies are: #{spies.join(", ")}."
-              end
+              User(m.user).send "Spies are #{spies.join(", ")}."
+              User(m.user).send "Resistance are #{resistance.join(", ")}."
             end
           else
             User(m.user).send "There is no game going on."
