@@ -325,6 +325,8 @@ module Cinch
             status = "Waiting on players to vote: #{@game.not_voted.map(&:user).join(", ")}"
           elsif current_round.in_mission_phase?
             status = "Waiting on players to return from the mission: #{@game.not_back_from_mission.map(&:user).join(", ")}"
+          elsif current_round.in_trapper_phase?
+            status = "Waiting on #{@game.current_round.team_leader.user.nick} to choose a player to trap"
           elsif current_round.in_excalibur_phase?
             status = "Waiting on #{@game.current_round.excalibur_holder.user.nick} to choose to use Excalibur or not"
           elsif current_round.in_lady_phase?
