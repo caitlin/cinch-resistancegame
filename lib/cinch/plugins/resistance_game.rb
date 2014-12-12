@@ -842,11 +842,14 @@ module Cinch
       end
       
       def tell_loyalty_to(player)
-        if @game.avalon?
-          spies = @game.original_spies
+        spies = @game.avalon? ? @game.original_spies : @game.spies
 
-          # if player is a spy, they can see other spies, but not oberon if he's in play
-          other_spies = player.spy? ? (spies.reject{ |s| s.role?(:oberon) || s == player }) : []
+        # If player is a spy, they can see other spies
+        other_spies = player.spy? ? spies.reject { |s| s == player } : []
+
+        if @game.avalon?
+          # Spies don't see Oberon if he's in play.
+          other_spies.reject! { |s| s.role?(:oberon) }
 
           if @game.variants.include?(:lancelot1) || @game.variants.include?(:lancelot2)
             evil_lancelot = @game.find_player_by_role(:evil_lancelot)
@@ -913,16 +916,17 @@ module Cinch
             loyalty_msg += "\nIn addition, you are THE ASSASSIN. Try to figure out who Merlin is."
           end
         else
-          if player.spy?
+          if player.role?(:spy)
             if @game.with_variant?(:blind_spies)
               spy_message = "This is the Blind Spies variant. You are a spy, but you don't reveal to the other spies and they don't reveal to you."
             else
-              other_spies = @game.spies.reject{ |s| s == player }.map{ |s| s.user.nick }
-              spy_message = "The other spies are: #{other_spies.join(', ')}."
+              spy_message = other_spies.empty? ? '' : "The other spies are: #{other_spies.map { |s| s.user.name }.join(', ')}."
             end
             loyalty_msg = "You are A SPY! #{spy_message}"
-          else
+          elsif player.role?(:resistance)
             loyalty_msg = "You are a member of the RESISTANCE."
+          else
+            loyalty_msg = "I don't know what you are. Something's gone wrong."
           end
         end
         User(player.user).send loyalty_msg
