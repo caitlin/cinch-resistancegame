@@ -1380,7 +1380,7 @@ module Cinch
             roles.push("spy_reverser") if variant_options.include?("spy_reverser") || variant_options.include?("blind_spy_reverser")
 
             @game.change_type :avalon, :roles => roles, :variants => variant_options, :assassin_dual => assassin_dual
-            game_type_message = "#{game_change_prefix} to Avalon. Using roles: #{self.game_settings[:roles].join(", ")}."
+            game_type_message = "#{game_change_prefix} to Avalon."
           else
             valid_variant_options = ["blind_spies"] + common_variant_options
             variant_options = options.select{ |opt| valid_variant_options.include?(opt.downcase) }
@@ -1392,8 +1392,9 @@ module Cinch
             @game.change_type :base, :roles => roles, :variants => variant_options
             game_type_message = "#{game_change_prefix} to base."
           end
+          with_roles = self.game_settings[:roles].empty? ? "" : " Using roles: #{self.game_settings[:roles].join(", ")}."
           with_variants = self.game_settings[:variants].empty? ? "" : " Using variants: #{self.game_settings[:variants].join(", ")}."
-          Channel(@channel_name).send "#{game_type_message}#{with_variants}"
+          Channel(@channel_name).send "#{game_type_message}#{with_roles}#{with_variants}"
         end
       end
 
