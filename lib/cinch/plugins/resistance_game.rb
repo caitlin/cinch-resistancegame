@@ -478,8 +478,14 @@ module Cinch
         unless @game.started?
           if @game.at_min_players?
             if @game.has_player?(m.user)
+              begin
+                @game.start_game!
+              rescue Game::TooManyRoles => e
+                m.reply("There are too many #{e.type} roles. Please remove #{e.overflow} #{e.type} roles, or add more players.", true)
+                return
+              end
+
               @idle_timer.stop
-              @game.start_game!
 
               self.pass_out_loyalties
 

@@ -8,6 +8,23 @@ $player_count = 0
 
 class Game
 
+  class TooManyRoles < RuntimeError
+    attr_reader :overflow, :type
+    def initialize(overflow, type)
+      @overflow = overflow
+      @type = type
+    end
+  end
+  class TooManySpies < TooManyRoles
+    def initialize(overflow)
+      super(overflow, 'spy')
+    end
+  end
+  class TooManyResistance < TooManyRoles
+    def initialize(overflow)
+      super(overflow, 'resistance')
+    end
+  end
 
   MIN_PLAYERS = 5
   MAX_PLAYERS = 10
@@ -141,9 +158,11 @@ class Game
   #----------------------------------------------
 
   def start_game!
+    # Raises if we can't assign loyalties.
+    self.assign_loyalties
+
     self.started = true
     self.time_start = Time.now
-    self.assign_loyalties
     self.make_lancelot_deck if self.variants.include?(:lancelot1) || self.variants.include?(:lancelot2)
     @current_round = Round.new(1)
     self.rounds << @current_round
@@ -219,6 +238,9 @@ class Game
     resistance_count.times { loyalty_deck << :resistance } 
     spy_count.times { loyalty_deck << :spy } 
     loyalty_deck.shuffle!
+
+    raise TooManyResistance.new(-resistance_count) if resistance_count < 0
+    raise TooManySpies.new(-spy_count) if spy_count < 0
 
     # assign loyalties
     self.players.each_with_index do |player, i|
