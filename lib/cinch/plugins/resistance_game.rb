@@ -1094,18 +1094,7 @@ module Cinch
         if @game.current_round.team_makes?
           @game.go_on_mission
           Channel(@channel_name).send "This team is going on the mission!"
-          @game.current_round.team.players.each do |p|
-            if @game.with_variant?(:lancelot2) && p.currently_evil_lancelot?
-              mission_prompt = 'Mission time! Since you are the currently-evil Lancelot, you can only choose to FAIL the mission. "!mission fail"'
-            elsif p.reverser?
-              mission_prompt = 'Mission time! Since you are a reverser, you have the option to PASS or REVERSE the mission. "!mission pass" or "!mission reverse"'
-            elsif p.spy?
-              mission_prompt = 'Mission time! Since you are a spy, you have the option to PASS or FAIL the mission. "!mission pass" or "!mission fail"'
-            else
-              mission_prompt = 'Mission time! Since you are resistance, you can only choose to PASS the mission. "!mission pass"'
-            end
-            User(p.user).send mission_prompt
-          end
+          prompt_missiongoers
         else
           @game.try_making_team_again
           Channel(@channel_name).send "This team is NOT going on the mission. Reject count: #{@game.current_round.fail_count}"
@@ -1118,6 +1107,21 @@ module Cinch
             @game.current_round.back_to_team_making
           end
 
+        end
+      end
+
+      def prompt_missiongoers
+        @game.current_round.team.players.each do |p|
+          if @game.with_variant?(:lancelot2) && p.currently_evil_lancelot?
+            mission_prompt = 'Mission time! Since you are the currently-evil Lancelot, you can only choose to FAIL the mission. "!mission fail"'
+          elsif p.reverser?
+            mission_prompt = 'Mission time! Since you are a reverser, you have the option to PASS or REVERSE the mission. "!mission pass" or "!mission reverse"'
+          elsif p.spy?
+            mission_prompt = 'Mission time! Since you are a spy, you have the option to PASS or FAIL the mission. "!mission pass" or "!mission fail"'
+          else
+            mission_prompt = 'Mission time! Since you are resistance, you can only choose to PASS the mission. "!mission pass"'
+          end
+          User(p.user).send mission_prompt
         end
       end
 
