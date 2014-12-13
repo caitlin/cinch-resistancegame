@@ -42,6 +42,7 @@ module Cinch
       match /propose (.+)/i,     :method => :propose_team
       match /vote (.+)/i,        :method => :team_vote
       match /mission (.+)/i,     :method => :mission_vote
+      match /watch (.+)/i,       :method => :watch
       match /trap (.+)/i,        :method => :trap
       match /excalibur (.+)/i,   :method => :excalibur_use
       match /xcal (.+)/i,        :method => :excalibur_use
@@ -334,6 +335,8 @@ module Cinch
             status = "Waiting on players to vote: #{@game.not_voted.map(&:user).join(", ")}"
           elsif current_round.in_mission_phase?
             status = "Waiting on players to return from the mission: #{@game.not_back_from_mission.map(&:user).join(", ")}"
+          elsif current_round.in_watch_phase?
+            status = "Waiting on #{@game.current_round.team_leader.user.nick} to choose a player to watch"
           elsif current_round.in_trapper_phase?
             status = "Waiting on #{@game.current_round.team_leader.user.nick} to choose a player to trap"
           elsif current_round.in_excalibur_phase?
@@ -673,6 +676,9 @@ module Cinch
             valid_options = ['pass', 'reverse']
           elsif player.spy?
             valid_options = ['pass', 'fail']
+          elsif player.role?(:resistance_rogue)
+            valid_options = ['pass']
+            valid_options << 'rogue' if @game.current_round.watched != player
           else
             valid_options = ['pass']
           end
@@ -769,6 +775,31 @@ module Cinch
             User(m.user).send "You do not have the Lady of the Lake."
           end
         end
+      end
+
+      def watch(m, target)
+        return unless @game.current_round.in_watch_phase?
+        unless @game.current_round.team_leader.user == m.user
+          m.user.send('You are not the Watcher.')
+          return
+        end
+
+        watched = @game.find_player(target)
+        if watched.nil?
+          m.user.send("\"#{target}\" is an invalid target.")
+          return
+        end
+
+        unless @game.current_round.team.has_player?(watched)
+          m.user.send("#{target} was not on the mission.")
+          return
+        end
+
+        @game.current_round.use_watch_on(watched)
+
+        Channel(@channel_name).send("#{m.user.nick} watches #{target}.")
+
+        self.prompt_missiongoers
       end
 
       def trap(m, target)
@@ -943,6 +974,8 @@ module Cinch
             loyalty_msg = "You are A SPY.#{spy_info}"
           elsif player.role?(:resistance_reverser)
             loyalty_msg = "You are THE RESISTANCE REVERSER."
+          elsif player.role?(:resistance_rogue)
+            loyalty_msg = "You are THE RESISTANCE ROGUE."
           elsif player.role?(:resistance)
             loyalty_msg = "You are a member of the RESISTANCE."
           else
@@ -973,6 +1006,8 @@ module Cinch
             loyalty_msg = "You are THE SPY ROGUE."
           elsif player.role?(:resistance_reverser)
             loyalty_msg = "You are THE RESISTANCE REVERSER."
+          elsif player.role?(:resistance_rogue)
+            loyalty_msg = "You are THE RESISTANCE ROGUE."
           elsif player.role?(:resistance)
             loyalty_msg = "You are a member of the RESISTANCE."
           else
@@ -1092,9 +1127,13 @@ module Cinch
 
         # determine if team makes
         if @game.current_round.team_makes?
-          @game.go_on_mission
           Channel(@channel_name).send "This team is going on the mission!"
-          prompt_missiongoers
+          # Resistance rogue, any mission if 7+ players, or missions 3-5 if 6p
+          if @game.with_role?(:resistance_rogue) && (@game.current_round.number >= 3 || @game.player_count >= 7)
+            prompt_for_watch
+          else
+            prompt_missiongoers
+          end
         else
           @game.try_making_team_again
           Channel(@channel_name).send "This team is NOT going on the mission. Reject count: #{@game.current_round.fail_count}"
@@ -1111,6 +1150,7 @@ module Cinch
       end
 
       def prompt_missiongoers
+        @game.go_on_mission
         @game.current_round.team.players.each do |p|
           if @game.with_variant?(:lancelot2) && p.currently_evil_lancelot?
             mission_prompt = 'Mission time! Since you are the currently-evil Lancelot, you can only choose to FAIL the mission. "!mission fail"'
@@ -1118,6 +1158,12 @@ module Cinch
             mission_prompt = 'Mission time! Since you are a reverser, you have the option to PASS or REVERSE the mission. "!mission pass" or "!mission reverse"'
           elsif p.spy?
             mission_prompt = 'Mission time! Since you are a spy, you have the option to PASS or FAIL the mission. "!mission pass" or "!mission fail"'
+          elsif p.role?(:resistance_rogue)
+            if @game.current_round.watched == p
+              mission_prompt = 'Mission time! Since you are being watched, you can only choose to PASS the mission. "!mission pass"'
+            else
+              mission_prompt = 'Mission time! Since you are the Resistance Rogue, you have the options to PASS or ROGUE PASS the mission. "!mission pass" or "!mission rogue"'
+            end
           else
             mission_prompt = 'Mission time! Since you are resistance, you can only choose to PASS the mission. "!mission pass"'
           end
@@ -1166,6 +1212,13 @@ module Cinch
         self.check_game_state
       end
 
+      def prompt_for_watch
+        @game.current_round.ask_for_watch
+        leader = @game.current_round.team_leader
+        Channel(@channel_name).send "WATCH: #{leader.user.nick}, select a player to watch."
+        leader.user.send('Select a player to watch with "!watch name"')
+      end
+
       def prompt_for_trapper
         @game.current_round.ask_for_trapper
         leader = @game.current_round.team_leader
@@ -1197,6 +1250,11 @@ module Cinch
         spies, resistance = get_loyalty_info
         if @game.spy_rogue_wins?
           Channel(@channel_name).send "Game is over! The spy rogue #{@game.find_player_by_role(:spy_rogue).user.name} wins!"
+          Channel(@channel_name).send "The spies were: #{spies.join(", ")}"
+          Channel(@channel_name).send "The resistance were: #{resistance.join(", ")}"
+          self.start_new_game
+        elsif @game.resistance_rogue_wins?
+          Channel(@channel_name).send "Game is over! The resistance rogue #{@game.find_player_by_role(:resistance_rogue).user.name} wins!"
           Channel(@channel_name).send "The spies were: #{spies.join(", ")}"
           Channel(@channel_name).send "The resistance were: #{resistance.join(", ")}"
           self.start_new_game
@@ -1360,7 +1418,7 @@ module Cinch
       end
 
       def set_game_settings(m, game_type, game_options = "")
-        common_role_options = ["resistance_reverser", "spy_reverser", "spy_rogue"]
+        common_role_options = ["resistance_reverser", "spy_reverser", "resistance_rogue", "spy_rogue"]
         common_variant_options = ["lady", "excalibur", "trapper", "blind_spy_reverser"]
 
         # this is really really wonky =(
