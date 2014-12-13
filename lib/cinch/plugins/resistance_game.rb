@@ -1411,6 +1411,7 @@ module Cinch
           settings[:variants] << "Lady of the Lake" if @game.variants.include?(:lady)
           settings[:variants] << "Excalibur" if @game.variants.include?(:excalibur)
           settings[:variants] << "Trapper" if @game.variants.include?(:trapper)
+          settings[:variants] << "Blind Spy Reverser" if @game.variants.include?(:blind_spy_reverser)
         else
           settings[:variants] = @game.variants.map{ |o| o.to_s.gsub("_", " ").titleize }
         end
