@@ -32,7 +32,7 @@ class Player
   end
 
   def original_spy?
-    [:spy, :spy_reverser, :assassin, :mordred, :oberon, :morgana, :evil_lancelot].any?{ |role| role == self.loyalty }
+    [:spy, :spy_reverser, :spy_rogue, :assassin, :mordred, :oberon, :morgana, :evil_lancelot].any?{ |role| role == self.loyalty }
   end
 
   def currently_evil_lancelot?
@@ -40,7 +40,7 @@ class Player
   end
 
   def spy?
-    [:spy, :spy_reverser, :assassin, :mordred, :oberon, :morgana].any?{ |role| role == self.loyalty } || self.currently_evil_lancelot?
+    [:spy, :spy_reverser, :spy_rogue, :assassin, :mordred, :oberon, :morgana].any?{ |role| role == self.loyalty } || self.currently_evil_lancelot?
   end
 
   def reverser?

@@ -234,6 +234,11 @@ class Game
       spy_count -= 1
     end
 
+    if self.roles.include?(:spy_rogue)
+      loyalty_deck << :spy_rogue
+      spy_count -= 1
+    end
+
     # build the rest of the loyalty deck and shuffle
     resistance_count.times { loyalty_deck << :resistance } 
     spy_count.times { loyalty_deck << :spy } 
@@ -376,6 +381,20 @@ class Game
 
   def is_over?
     self.spies_win? || self.resistance_win?
+  end
+
+  def a_rogue_wins?(role, mission_success, card)
+    return false if self.mission_results.count(mission_success) < 3
+    rogue = self.find_player_by_role(role)
+    return false unless rogue
+
+    played_card_on_last = self.rounds.last.mission_vote_for(rogue) == card
+    played_card_on_any_other = self.rounds[0...-1].any? { |round| round.mission_vote_for(rogue) == card }
+    return played_card_on_last && played_card_on_any_other
+  end
+
+  def spy_rogue_wins?
+    self.a_rogue_wins?(:spy_rogue, false, 'fail')
   end
 
   def spies_win?

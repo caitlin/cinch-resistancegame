@@ -864,6 +864,8 @@ module Cinch
         other_spies = player.spy? ? spies.reject { |s| s == player } : []
         # But not Spy Reverser if blind
         other_spies.reject! { |s| s.role?(:spy_reverser) } if @game.with_variant?(:blind_spy_reverser)
+        # But not Spy Rogue
+        other_spies.reject! { |s| s.role?(:spy_rogue) }
 
         if @game.avalon?
           # Spies don't see Oberon if he's in play.
@@ -890,13 +892,17 @@ module Cinch
           if @game.with_variant?(:blind_spy_reverser)
             spy_info << " The Spy Reverser is a spy, but does not reveal to you and does not know who the other spies are."
           end
+          if @game.with_role?(:spy_rogue)
+            spy_info << " The Spy Rogue is a spy, but does not reveal to you and does not know who the other spies are."
+          end
 
 
           # here we goooo...
           if player.role?(:merlin)
             # sees spies minus mordred
-            spies_minus_mordred = spies.reject{ |s| s.role?(:mordred) }.map{ |s| s.user.nick }
+            spies_minus_mordred = spies.reject{ |s| s.role?(:mordred) || s.role?(:spy_rogue) }.map{ |s| s.user.nick }
             missing = @game.with_role?(:mordred) ? " You don't see Mordred." : ""
+            missing = @game.with_role?(:spy_rogue) ? "#{missing} You don't see the Spy Rogue." : missing
             loyalty_msg = "You are MERLIN (resistance). Don't let the spies learn who you are. The spies are: #{spies_minus_mordred.join(', ')}.#{missing}"
           elsif player.role?(:assassin)
             loyalty_msg = "You are THE ASSASSIN (spy). Try to figure out who Merlin is.#{spy_info}"
@@ -931,6 +937,8 @@ module Cinch
             else
               loyalty_msg = "You are THE SPY REVERSER.#{spy_info}"
             end
+          elsif player.role?(:spy_rogue)
+            loyalty_msg = "You are THE SPY ROGUE."
           elsif player.role?(:spy)
             loyalty_msg = "You are A SPY.#{spy_info}"
           elsif player.role?(:resistance_reverser)
@@ -961,6 +969,8 @@ module Cinch
             else
               loyalty_msg = "You are THE SPY REVERSER. The other spies are: #{other_spies.map { |s| s.user.name }.join(', ')}"
             end
+          elsif player.role?(:spy_rogue)
+            loyalty_msg = "You are THE SPY ROGUE."
           elsif player.role?(:resistance_reverser)
             loyalty_msg = "You are THE RESISTANCE REVERSER."
           elsif player.role?(:resistance)
@@ -1181,7 +1191,12 @@ module Cinch
 
       def do_end_game
         spies, resistance = get_loyalty_info
-        if @game.spies_win?
+        if @game.spy_rogue_wins?
+          Channel(@channel_name).send "Game is over! The spy rogue #{@game.find_player_by_role(:spy_rogue).user.name} wins!"
+          Channel(@channel_name).send "The spies were: #{spies.join(", ")}"
+          Channel(@channel_name).send "The resistance were: #{resistance.join(", ")}"
+          self.start_new_game
+        elsif @game.spies_win?
           Channel(@channel_name).send "Game is over! The spies have won!"
           Channel(@channel_name).send "The spies were: #{spies.join(", ")}"
           Channel(@channel_name).send "The resistance were: #{resistance.join(", ")}"
@@ -1341,7 +1356,7 @@ module Cinch
       end
 
       def set_game_settings(m, game_type, game_options = "")
-        common_role_options = ["resistance_reverser", "spy_reverser"]
+        common_role_options = ["resistance_reverser", "spy_reverser", "spy_rogue"]
         common_variant_options = ["lady", "excalibur", "trapper", "blind_spy_reverser"]
 
         # this is really really wonky =(
