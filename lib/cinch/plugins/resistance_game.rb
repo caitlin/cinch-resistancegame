@@ -1341,7 +1341,8 @@ module Cinch
       end
 
       def set_game_settings(m, game_type, game_options = "")
-        common_variant_options = ["lady", "excalibur", "trapper", "resistance_reverser", "spy_reverser", "blind_spy_reverser"]
+        common_role_options = ["resistance_reverser", "spy_reverser"]
+        common_variant_options = ["lady", "excalibur", "trapper", "blind_spy_reverser"]
 
         # this is really really wonky =(
         unless @game.started?
@@ -1350,7 +1351,7 @@ module Cinch
           options = options.downcase.split(" ")
           if game_type.downcase == "avalon"
             valid_assassin_subs   = ["mordred", "oberon", "morgana"]
-            valid_role_options    = ["percival"] + valid_assassin_subs
+            valid_role_options    = ["percival"] + common_role_options + valid_assassin_subs
             valid_variant_options = ["lancelot1", "lancelot2", "lancelot3"] + common_variant_options
 
             assassin_dual = nil
@@ -1376,18 +1377,18 @@ module Cinch
               roles.push("good_lancelot").push("evil_lancelot")
             end
 
-            roles.push("resistance_reverser") if variant_options.include?("resistance_reverser")
-            roles.push("spy_reverser") if variant_options.include?("spy_reverser") || variant_options.include?("blind_spy_reverser")
+            roles.push("spy_reverser") if variant_options.include?("blind_spy_reverser") && !roles.include?("spy_reverser")
 
             @game.change_type :avalon, :roles => roles, :variants => variant_options, :assassin_dual => assassin_dual
             game_type_message = "#{game_change_prefix} to Avalon."
           else
+            valid_role_options    = common_role_options
             valid_variant_options = ["blind_spies"] + common_variant_options
+
+            roles           = options.select{ |opt| valid_role_options.include?(opt) }
             variant_options = options.select{ |opt| valid_variant_options.include?(opt.downcase) }
 
-            roles = []
-            roles.push("resistance_reverser") if variant_options.include?("resistance_reverser")
-            roles.push("spy_reverser") if variant_options.include?("spy_reverser") || variant_options.include?("blind_spy_reverser")
+            roles.push("spy_reverser") if variant_options.include?("blind_spy_reverser") && !roles.include?("spy_reverser")
 
             @game.change_type :base, :roles => roles, :variants => variant_options
             game_type_message = "#{game_change_prefix} to base."
