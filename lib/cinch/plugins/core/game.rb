@@ -234,6 +234,10 @@ class Game
       spy_count -= 1
     end
 
+    if self.roles.include?(:resistance_rogue)
+      loyalty_deck << :resistance_rogue
+      resistance_count -= 1
+    end
     if self.roles.include?(:spy_rogue)
       loyalty_deck << :spy_rogue
       spy_count -= 1
@@ -393,6 +397,9 @@ class Game
     return played_card_on_last && played_card_on_any_other
   end
 
+  def resistance_rogue_wins?
+    self.a_rogue_wins?(:resistance_rogue, true, 'rogue')
+  end
   def spy_rogue_wins?
     self.a_rogue_wins?(:spy_rogue, false, 'fail')
   end

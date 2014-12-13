@@ -48,7 +48,7 @@ class Player
   end
 
   def resistance?
-    [:resistance, :resistance_reverser, :merlin, :percival].any?{ |role| role == self.loyalty } || (self.loyalty == :evil_lancelot && self.lancelot_switch) || (self.loyalty == :good_lancelot && !self.lancelot_switch )
+    [:resistance, :resistance_reverser, :resistance_rogue, :merlin, :percival].any?{ |role| role == self.loyalty } || (self.loyalty == :evil_lancelot && self.lancelot_switch) || (self.loyalty == :good_lancelot && !self.lancelot_switch )
   end
   
   def role?(role)
