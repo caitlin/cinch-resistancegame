@@ -864,6 +864,8 @@ module Cinch
         other_spies = player.spy? ? spies.reject { |s| s == player } : []
         # But not Spy Reverser if blind
         other_spies.reject! { |s| s.role?(:spy_reverser) } if @game.with_variant?(:blind_spy_reverser)
+        # But not Spy Rogue
+        other_spies.reject! { |s| s.role?(:spy_rogue) }
 
         if @game.avalon?
           # Spies don't see Oberon if he's in play.
@@ -890,13 +892,17 @@ module Cinch
           if @game.with_variant?(:blind_spy_reverser)
             spy_info << " The Spy Reverser is a spy, but does not reveal to you and does not know who the other spies are."
           end
+          if @game.with_role?(:spy_rogue)
+            spy_info << " The Spy Rogue is a spy, but does not reveal to you and does not know who the other spies are."
+          end
 
 
           # here we goooo...
           if player.role?(:merlin)
             # sees spies minus mordred
-            spies_minus_mordred = spies.reject{ |s| s.role?(:mordred) }.map{ |s| s.user.nick }
+            spies_minus_mordred = spies.reject{ |s| s.role?(:mordred) || s.role?(:spy_rogue) }.map{ |s| s.user.nick }
             missing = @game.with_role?(:mordred) ? " You don't see Mordred." : ""
+            missing = @game.with_role?(:spy_rogue) ? "#{missing} You don't see the Spy Rogue." : missing
             loyalty_msg = "You are MERLIN (resistance). Don't let the spies learn who you are. The spies are: #{spies_minus_mordred.join(', ')}.#{missing}"
           elsif player.role?(:assassin)
             loyalty_msg = "You are THE ASSASSIN (spy). Try to figure out who Merlin is.#{spy_info}"
@@ -931,6 +937,8 @@ module Cinch
             else
               loyalty_msg = "You are THE SPY REVERSER.#{spy_info}"
             end
+          elsif player.role?(:spy_rogue)
+            loyalty_msg = "You are THE SPY ROGUE."
           elsif player.role?(:spy)
             loyalty_msg = "You are A SPY.#{spy_info}"
           elsif player.role?(:resistance_reverser)
@@ -961,6 +969,8 @@ module Cinch
             else
               loyalty_msg = "You are THE SPY REVERSER. The other spies are: #{other_spies.map { |s| s.user.name }.join(', ')}"
             end
+          elsif player.role?(:spy_rogue)
+            loyalty_msg = "You are THE SPY ROGUE."
           elsif player.role?(:resistance_reverser)
             loyalty_msg = "You are THE RESISTANCE REVERSER."
           elsif player.role?(:resistance)
@@ -1181,7 +1191,12 @@ module Cinch
 
       def do_end_game
         spies, resistance = get_loyalty_info
-        if @game.spies_win?
+        if @game.spy_rogue_wins?
+          Channel(@channel_name).send "Game is over! The spy rogue #{@game.find_player_by_role(:spy_rogue).user.name} wins!"
+          Channel(@channel_name).send "The spies were: #{spies.join(", ")}"
+          Channel(@channel_name).send "The resistance were: #{resistance.join(", ")}"
+          self.start_new_game
+        elsif @game.spies_win?
           Channel(@channel_name).send "Game is over! The spies have won!"
           Channel(@channel_name).send "The spies were: #{spies.join(", ")}"
           Channel(@channel_name).send "The resistance were: #{resistance.join(", ")}"
@@ -1341,7 +1356,8 @@ module Cinch
       end
 
       def set_game_settings(m, game_type, game_options = "")
-        common_variant_options = ["lady", "excalibur", "trapper", "resistance_reverser", "spy_reverser", "blind_spy_reverser"]
+        common_role_options = ["resistance_reverser", "spy_reverser", "spy_rogue"]
+        common_variant_options = ["lady", "excalibur", "trapper", "blind_spy_reverser"]
 
         # this is really really wonky =(
         unless @game.started?
@@ -1350,7 +1366,7 @@ module Cinch
           options = options.downcase.split(" ")
           if game_type.downcase == "avalon"
             valid_assassin_subs   = ["mordred", "oberon", "morgana"]
-            valid_role_options    = ["percival"] + valid_assassin_subs
+            valid_role_options    = ["percival"] + common_role_options + valid_assassin_subs
             valid_variant_options = ["lancelot1", "lancelot2", "lancelot3"] + common_variant_options
 
             assassin_dual = nil
@@ -1376,24 +1392,25 @@ module Cinch
               roles.push("good_lancelot").push("evil_lancelot")
             end
 
-            roles.push("resistance_reverser") if variant_options.include?("resistance_reverser")
-            roles.push("spy_reverser") if variant_options.include?("spy_reverser") || variant_options.include?("blind_spy_reverser")
+            roles.push("spy_reverser") if variant_options.include?("blind_spy_reverser") && !roles.include?("spy_reverser")
 
             @game.change_type :avalon, :roles => roles, :variants => variant_options, :assassin_dual => assassin_dual
-            game_type_message = "#{game_change_prefix} to Avalon. Using roles: #{self.game_settings[:roles].join(", ")}."
+            game_type_message = "#{game_change_prefix} to Avalon."
           else
+            valid_role_options    = common_role_options
             valid_variant_options = ["blind_spies"] + common_variant_options
+
+            roles           = options.select{ |opt| valid_role_options.include?(opt) }
             variant_options = options.select{ |opt| valid_variant_options.include?(opt.downcase) }
 
-            roles = []
-            roles.push("resistance_reverser") if variant_options.include?("resistance_reverser")
-            roles.push("spy_reverser") if variant_options.include?("spy_reverser") || variant_options.include?("blind_spy_reverser")
+            roles.push("spy_reverser") if variant_options.include?("blind_spy_reverser") && !roles.include?("spy_reverser")
 
             @game.change_type :base, :roles => roles, :variants => variant_options
             game_type_message = "#{game_change_prefix} to base."
           end
+          with_roles = self.game_settings[:roles].empty? ? "" : " Using roles: #{self.game_settings[:roles].join(", ")}."
           with_variants = self.game_settings[:variants].empty? ? "" : " Using variants: #{self.game_settings[:variants].join(", ")}."
-          Channel(@channel_name).send "#{game_type_message}#{with_variants}"
+          Channel(@channel_name).send "#{game_type_message}#{with_roles}#{with_variants}"
         end
       end
 
@@ -1411,6 +1428,7 @@ module Cinch
           settings[:variants] << "Lady of the Lake" if @game.variants.include?(:lady)
           settings[:variants] << "Excalibur" if @game.variants.include?(:excalibur)
           settings[:variants] << "Trapper" if @game.variants.include?(:trapper)
+          settings[:variants] << "Blind Spy Reverser" if @game.variants.include?(:blind_spy_reverser)
         else
           settings[:variants] = @game.variants.map{ |o| o.to_s.gsub("_", " ").titleize }
         end
