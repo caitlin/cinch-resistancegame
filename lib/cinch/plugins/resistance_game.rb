@@ -657,6 +657,11 @@ module Cinch
             @game.cancel_vote_for_team(m.user)
             User(m.user).send "Your vote has been canceled."
           elsif ['yes', 'no'].include?(vote)
+            if m.channel
+              m.reply('You MUST vote privately.', true)
+              return
+            end
+
             @game.vote_for_team(m.user, vote)
             User(m.user).send "You voted '#{vote}' for the team."
             if @game.all_team_votes_in?
@@ -686,7 +691,9 @@ module Cinch
 
           if @game.current_round.team.players.include?(player)
             vote.downcase!
-            if valid_options.include?(vote)
+            if m.channel && ['pass', 'fail', 'reverse', 'rogue'].include?(vote)
+              m.reply('You MUST vote privately.', true)
+            elsif valid_options.include?(vote)
               unless  @game.compare_vote_for_mission(m.user, vote)
                 @game.vote_for_mission(m.user, vote)
                 User(m.user).send "You voted for the mission to '#{vote}'."
