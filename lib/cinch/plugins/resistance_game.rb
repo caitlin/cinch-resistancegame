@@ -147,6 +147,7 @@ module Cinch
             User(m.user).send "!whoami - returns your current loyalty role"
           when "3"
             User(m.user).send "--- HELP PAGE 3/3 ---"
+            m.user.send('!settings (base|avalon) role1 role2... - changes settings for the game and adds roles or variants')
             User(m.user).send "!rules (avalon|avroles|teamsizes) - provides rules for the game; when provided with an argument, provides specified rules"
             User(m.user).send "!tips resistance|spies - provides tips for playing either side of the game"
             User(m.user).send "!subscribe - subscribe your current nick to receive PMs when someone calls !invite"
