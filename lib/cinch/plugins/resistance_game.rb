@@ -1256,6 +1256,7 @@ module Cinch
       end
 
       def do_end_game
+        @game.current_round.end_round
         spies, resistance = get_loyalty_info
         if @game.spy_rogue_wins?
           Channel(@channel_name).send "Game is over! The spy rogue #{@game.find_player_by_role(:spy_rogue).user.name} wins!"
