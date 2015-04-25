@@ -259,17 +259,19 @@ module Cinch
       end
 
       def missions_overview(m)
-        round = @game.current_round.number
+        game = @game.not_started? ? @last_game : @game
+
+        round = game.current_round.number
         (1..round).to_a.each do |number|
-          prev_round = @game.get_prev_round(number)
-          if ! prev_round.nil? && (prev_round.ended? || prev_round.in_mission_phase? || @game.current_round.in_assassinate_phase?)
+          prev_round = game.get_prev_round(number)
+          if ! prev_round.nil? && (prev_round.ended? || prev_round.in_mission_phase? || game.current_round.in_assassinate_phase?)
             team = prev_round.team
-            if prev_round.ended? || @game.current_round.in_assassinate_phase?
+            if prev_round.ended? || game.current_round.in_assassinate_phase?
               mission_result = format_round_result(prev_round)
-              if @game.variants.include?(:trapper)
+              if game.variants.include?(:trapper)
                 mission_result += " - #{prev_round.team_leader.user.nick} traps #{prev_round.trapped.user.nick}"
               end
-              if @game.variants.include?(:excalibur)
+              if game.variants.include?(:excalibur)
                 unless prev_round.excalibured.nil?
                   mission_result += " - #{prev_round.excalibur_holder.user.nick} xCals #{prev_round.excalibured.user.nick}"
                 end
@@ -286,8 +288,10 @@ module Cinch
       end
 
       def mission_summary(m, round_number)
+        game = @game.not_started? ? @last_game : @game
+
         number = round_number.to_i
-        prev_round = @game.get_prev_round(number)
+        prev_round = game.get_prev_round(number)
         if prev_round.nil?
           m.reply "That mission hasn't started yet."
         else
@@ -295,20 +299,20 @@ module Cinch
           m.reply "MISSION #{number}"
           teams.each_with_index do |team, i|
             went_team = team.team_makes? ? " - MISSION" : ""
-            if team.team_votes.length == @game.players.length # this should probably be a method somewhere?
+            if team.team_votes.length == game.players.length # this should probably be a method somewhere?
               m.reply "Team #{i+1} - Leader: #{dehighlight_nick(team.team_leader.user.nick)} - Team: #{format_team(team, true)} - Votes: #{self.format_votes(team.team_votes, true)}#{went_team}"
             elsif i == 0
               m.reply "No teams have been voted on yet."
             end
           end
-          if prev_round.ended? || @game.current_round.in_assassinate_phase? || @game.current_round.in_lady_phase?
+          if prev_round.ended? || game.current_round.in_assassinate_phase? || game.current_round.in_lady_phase?
             trap_result = ""
-            if @game.variants.include?(:trapper)
+            if game.variants.include?(:trapper)
               trap_result = " - #{prev_round.team_leader.user.nick} traps #{prev_round.trapped.user.nick}"
             end
 
             xcal_result = ""
-            if @game.variants.include?(:excalibur)
+            if game.variants.include?(:excalibur)
               if prev_round.excalibured.nil?
                 xcal_result = " - Excalibur not used"
               else 
