@@ -18,6 +18,7 @@ module Cinch
       def initialize(*args)
         super
         @game = Game.new
+        @last_game = Game.new
  
         @changelog     = self.load_changelog
 
@@ -1293,6 +1294,7 @@ module Cinch
           Channel(@channel_name).devoice(p.user)
         end
         @game.save_game(@games_dir)
+        @last_game = @game
         @game = Game.new
         @idle_timer.start
       end
@@ -1340,6 +1342,7 @@ module Cinch
             Channel(@channel_name).send "The spies were: #{spies.join(", ")}"
             Channel(@channel_name).send "The resistance were: #{resistance.join(", ")}"
           end
+          @last_game = @game
           @game = Game.new
           self.devoice_channel
           Channel(@channel_name).send "The game has been reset."
