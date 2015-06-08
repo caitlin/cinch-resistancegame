@@ -9,6 +9,7 @@ Gem::Specification.new do |s|
   s.description = %q{Gives Cinch IRC bots ability to play The Resistance}
 
   s.add_dependency("cinch", "~> 2.0")
+  s.add_dependency("amatch")
 
   s.files         = `git ls-files`.split("\n")
   s.require_paths = ["lib"]
