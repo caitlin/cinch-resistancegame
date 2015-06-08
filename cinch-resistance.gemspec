@@ -5,6 +5,7 @@ Gem::Specification.new do |s|
   s.version     = "1.0"
   s.platform    = Gem::Platform::RUBY
   s.homepage    = "https://github.com/caitlin/cinch-resistancegame"
+  s.author      = ['caitlin']
   s.summary     = %q{Gives Cinch IRC bots ability to play The Resistance}
   s.description = %q{Gives Cinch IRC bots ability to play The Resistance}
 
