@@ -547,6 +547,11 @@ module Cinch
           # make sure the providing user is team leader 
           player_nicks = @game.players.map{|p| p.user.nick }
           if m.user == @game.team_leader.user
+            unless @game.current_round.in_team_making_phase? || @game.current_round.in_team_proposed_phase?
+              m.reply('The team has already been confirmed.', true)
+              return
+            end
+
             valid_team = false
             players = []
             players_with_xcal = []  
