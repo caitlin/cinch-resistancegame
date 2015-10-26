@@ -561,10 +561,6 @@ module Cinch
               # jaro_matches = p.jaro_similar(player_nicks)
               # fuzzy_matches = [jaro_matches,leve_matches].transpose.map {|x| x.reduce(:+)}
               high_fuzzy = fuzzy_matches.max
-              puts "="*80
-              puts player_nicks.inspect
-              puts fuzzy_matches.inspect
-              puts "="*80
               
               if high_fuzzy > 0.15
                 best_nick = player_nicks[fuzzy_matches.index(high_fuzzy)]
