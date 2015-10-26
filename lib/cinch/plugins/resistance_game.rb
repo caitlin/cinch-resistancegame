@@ -679,7 +679,7 @@ module Cinch
       end
 
       def mission_vote(m, vote)
-        if @game.current_round.in_mission_phase?
+        if @game.started? && @game.current_round.in_mission_phase?
           player = @game.find_player(m.user)
           if @game.with_variant?(:lancelot2) && player.currently_evil_lancelot?
             valid_options = ['fail']
