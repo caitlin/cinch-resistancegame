@@ -112,5 +112,20 @@ RSpec::describe Cinch::Plugins::ResistanceGame do
       ]
       expect(chan.messages).to be_empty
     end
+
+    it 'runs through a complete game'do
+      allow(plugin).to receive(:sleep)
+      allow(chan).to receive(:moderated=)
+      allow(chan).to receive(:devoice)
+      [2, 3, 2].each_with_index { |mission_size, index|
+        leader = @order[index]
+        team = players.take(mission_size)
+        get_replies(msg("!team #{team.join(' ')}", nick: leader))
+        get_replies(msg('!confirm', nick: leader))
+        players.each { |p| get_replies(pm('!vote yes', nick: p)) }
+        team.each { |p| get_replies(pm('!mission pass', nick: p)) }
+      }
+      expect(chan.messages).to include('Game is over! The resistance wins!')
+    end
   end
 end
