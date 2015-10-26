@@ -555,7 +555,6 @@ module Cinch
             valid_team = false
             players = []
             players_with_xcal = []  
-            player_names = []
             team_members.split(/[\s,]+/).each do |p| 
               fuzzy_matches = p.levenshtein_similar(player_nicks) # leve_matches
               # jaro_matches = p.jaro_similar(player_nicks)
