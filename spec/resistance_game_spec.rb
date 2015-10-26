@@ -56,6 +56,9 @@ RSpec::describe Cinch::Plugins::ResistanceGame do
   }
   let(:plugin) { bot.plugins.first }
 
+  def pm(text, nick: players[0])
+    make_message(bot, text, nick: nick)
+  end
   def msg(text, nick: players[0], channel: channel1)
     make_message(bot, text, nick: nick, channel: channel)
   end
